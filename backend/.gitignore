@@ -1,0 +1,21 @@
+# Dependencias
+node_modules/
+
+# Salida de compilación TypeScript
+dist/
+
+# Variables de entorno y credenciales (crítico para proteger la base de datos)
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Herramientas locales de asistencia
+.agents/
+.claude/
+.cursor/
+.devin/

@@ -1,0 +1,81 @@
+@if (authenticated()) {
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">R</span><span>ROS-TOB</span></div>
+    <p class="eyebrow">LIBRERÍA / CONTROL</p>
+    <nav>
+      <button [class.active]="view() === 'dashboard'" (click)="navigate('dashboard')"><span>⌂</span> Resumen</button>
+      <button [class.active]="view() === 'sale'" (click)="navigate('sale')"><span>＋</span> Nueva venta</button>
+      <button [class.active]="view() === 'inventory'" (click)="navigate('inventory')"><span>▦</span> Inventario</button>
+      <button [class.active]="view() === 'history'" (click)="navigate('history')"><span>◷</span> Historial</button>
+    </nav>
+    <div class="sidebar-foot"><span class="status-dot"></span><span>Operación local</span><strong>Administrador</strong></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><p class="eyebrow">MARTES, 15 SEPTIEMBRE 2026</p><h1>{{ view() === 'dashboard' ? 'Buenos días, equipo.' : view() === 'sale' ? 'Nueva nota de venta' : view() === 'inventory' ? 'Inventario' : 'Historial de ventas' }}</h1></div>
+      <button class="user-chip" (click)="logout()"><span class="avatar">ER</span><span>Erick Rosales</span><span>Salir</span></button>
+    </header>
+    @if (notice()) { <div class="notice success">✓ {{ notice() }}</div> }
+    @if (error()) { <div class="notice error">! {{ error() }}</div> }
+
+    @if (view() === 'dashboard') {
+      <section class="page dashboard-page">
+        <div class="hero"><div><p class="eyebrow amber">CENTRO DE OPERACIONES</p><h2>Todo bajo control.</h2><p class="muted">Una vista clara de tu librería para decidir rápido.</p></div><button class="primary-button" (click)="navigate('sale')">＋ Nueva venta</button></div>
+        <div class="metric-grid">
+          <article class="metric"><span class="metric-icon green">▦</span><div><span>Libros registrados</span><strong>{{ dashboard()?.bookCount ?? '—' }}</strong><small>Catálogo activo</small></div></article>
+          <article class="metric"><span class="metric-icon blue">◫</span><div><span>Unidades disponibles</span><strong>{{ dashboard()?.unitsAvailable ?? '—' }}</strong><small>En inventario</small></div></article>
+          <article class="metric"><span class="metric-icon orange">↗</span><div><span>Ventas de hoy</span><strong>{{ dashboard()?.todaySales ?? '—' }}</strong><small>Notas completadas</small></div></article>
+          <article class="metric"><span class="metric-icon violet">$</span><div><span>Total vendido hoy</span><strong>{{ dashboard()?.todayTotal | currency:'USD' }}</strong><small>Incluye envíos</small></div></article>
+        </div>
+        <div class="content-grid">
+          <section class="panel"><div class="panel-head"><div><p class="eyebrow">ATENCIÓN</p><h3>Stock que requiere acción</h3></div><button class="text-button" (click)="navigate('inventory')">Ver inventario →</button></div>
+            @if ((dashboard()?.lowStock?.length ?? 0) + (dashboard()?.outOfStock?.length ?? 0) > 0) {
+              <div class="alert-list">
+                @for (book of dashboard()?.outOfStock ?? []; track book.id) { <div class="alert-row"><span class="book-cover">{{ book.title.charAt(0) }}</span><div><strong>{{ book.title }}</strong><small>{{ book.author }}</small></div><span class="stock-pill danger">Sin stock</span></div> }
+                @for (book of dashboard()?.lowStock ?? []; track book.id) { <div class="alert-row"><span class="book-cover">{{ book.title.charAt(0) }}</span><div><strong>{{ book.title }}</strong><small>{{ book.author }}</small></div><span class="stock-pill warning">Stock bajo · {{ book.stock }}</span></div> }
+              </div>
+            } @else { <div class="empty">No hay alertas de stock. Buen trabajo.</div> }
+          </section>
+          <section class="panel dark-panel"><div class="panel-head"><div><p class="eyebrow">ACTIVIDAD</p><h3>Ventas recientes</h3></div><button class="text-button light" (click)="navigate('history')">Ver todas →</button></div>
+            @for (sale of dashboard()?.recentSales ?? []; track sale.id) { <div class="sale-row"><div><strong>Nota #{{ sale.number }}</strong><small>{{ sale.createdAt | date:'dd/MM/yyyy · HH:mm' }}</small></div><strong>{{ sale.total | currency:'USD' }}</strong></div> } @empty { <div class="empty dark-empty">Aún no hay ventas registradas.</div> }
+          </section>
+        </div>
+      </section>
+    }
+
+    @if (view() === 'inventory') {
+      <section class="page"><div class="page-actions"><div><p class="eyebrow amber">CATÁLOGO DE LIBROS</p><h2>Inventario</h2><p class="muted">Administra títulos, precios y existencias.</p></div><button class="primary-button" (click)="openNewBook()">＋ Registrar libro</button></div>
+        <div class="toolbar"><div class="search-box"><span>⌕</span><input [(ngModel)]="search" (keyup.enter)="searchBooks()" placeholder="Buscar por código, título, autor o categoría"><button (click)="searchBooks()">Buscar</button></div><button class="secondary-button" (click)="loadBooks()">↻ Actualizar</button></div>
+        <section class="table-panel"><table><thead><tr><th>Libro</th><th>Código</th><th>Categoría</th><th>Costo</th><th>Precio venta</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          @for (book of books(); track book.id) { <tr><td><div class="book-cell"><span class="book-cover">{{ book.title.charAt(0) }}</span><div><strong>{{ book.title }}</strong><small>{{ book.author }}</small></div></div></td><td class="mono">{{ book.barcode }}</td><td>{{ book.category }}</td><td>{{ book.cost | currency:'USD' }}</td><td><strong>{{ book.salePrice | currency:'USD' }}</strong></td><td><strong>{{ book.stock }}</strong><small> mín. {{ book.minStock }}</small></td><td><span class="stock-pill" [ngClass]="book.stock === 0 ? 'danger' : book.stock <= book.minStock ? 'warning' : 'good'">{{ book.stock === 0 ? 'Sin stock' : book.stock <= book.minStock ? 'Stock bajo' : 'Disponible' }}</span></td><td><div class="row-actions"><button class="small-button" (click)="openEditBook(book)">Editar</button><button class="small-button" (click)="openEntry(book)">Entrada</button></div></td></tr> } @empty { <tr><td colspan="8" class="empty">No hay libros para mostrar.</td></tr> }
+        </tbody></table></section>
+      </section>
+    }
+
+    @if (view() === 'sale') {
+      <section class="page sale-page"><div class="page-actions"><div><p class="eyebrow amber">PUNTO DE VENTA</p><h2>Nueva nota de venta</h2><p class="muted">Escanea, revisa y finaliza en segundos.</p></div><span class="sale-number">N.º {{ saleLines().length ? 'BORRADOR' : 'NUEVA' }}</span></div>
+        <div class="sale-layout"><div class="sale-main panel"><div class="scan-head"><div><p class="eyebrow">AGREGAR PRODUCTOS</p><h3>Escáner de código de barras</h3></div><span class="scan-key">ENTER</span></div>
+          <div class="scan-box"><span>⌕</span><input [(ngModel)]="barcode" (keyup.enter)="scanSale()" autofocus placeholder="Escanea o escribe un código..."><button class="primary-button" (click)="scanSale()">Agregar</button></div>
+          <table class="sale-table"><thead><tr><th>Producto</th><th>Precio aplicado</th><th>Cantidad</th><th>Total</th><th></th></tr></thead><tbody>
+            @for (line of saleLines(); track line.bookId) { <tr><td><strong>{{ line.title }}</strong><small class="mono">{{ line.barcode }}</small></td><td><input class="price-input" type="number" min="0" step="0.01" [(ngModel)]="line.unitPrice"></td><td><div class="quantity"><button (click)="changeQuantity(line, -1)">−</button><strong>{{ line.quantity }}</strong><button (click)="changeQuantity(line, 1)">＋</button></div></td><td><strong>{{ line.quantity * line.unitPrice | currency:'USD' }}</strong></td><td><button class="icon-button" (click)="removeLine(line)">×</button></td></tr> } @empty { <tr><td colspan="5" class="empty">Escanea el primer libro para comenzar.</td></tr> }
+          </tbody></table><button class="text-button" (click)="showSaleCustomer.set(!showSaleCustomer())">{{ showSaleCustomer() ? '− Ocultar datos del cliente' : '+ Agregar datos del cliente' }}</button>
+          @if (showSaleCustomer()) { <div class="form-grid customer-form"><label>Cédula / RUC<input [(ngModel)]="customer.taxId"></label><label>Nombre<input [(ngModel)]="customer.name"></label><label>Teléfono<input [(ngModel)]="customer.phone"></label><label>Correo<input [(ngModel)]="customer.email"></label><label class="wide">Dirección<input [(ngModel)]="customer.address"></label></div> }
+        </div>
+        <aside class="sale-summary panel"><p class="eyebrow">RESUMEN</p><div class="summary-line"><span>Subtotal</span><strong>{{ subtotal() | currency:'USD' }}</strong></div><label class="switch-row"><span><input type="checkbox" [(ngModel)]="shippingActive"> Activar envío</span><strong>{{ (shippingActive ? shippingAmount : 0) | currency:'USD' }}</strong></label>
+          @if (shippingActive) { <div class="shipping-fields"><label>Valor del envío<input type="number" min="0" step="0.01" [(ngModel)]="shippingAmount"></label><label>Dirección<input [(ngModel)]="shippingAddress"></label><label>Referencia<input [(ngModel)]="shippingReference"></label><label>Observación<textarea [(ngModel)]="shippingNote"></textarea></label></div> }
+          <div class="total-line"><span>Total</span><strong>{{ total() | currency:'USD' }}</strong></div><label class="confirm-row"><input type="checkbox" [(ngModel)]="receivedConfirmed"><span>Recibí conforme</span></label><button class="primary-button full" (click)="finalizeSale()">Finalizar venta →</button><button class="secondary-button full" (click)="saleLines.set([])">Cancelar</button>
+        </aside></div>
+      </section>
+    }
+
+    @if (view() === 'history') { <section class="page"><div class="page-actions"><div><p class="eyebrow amber">REGISTRO</p><h2>Historial de ventas</h2><p class="muted">Consulta las notas emitidas y sus totales.</p></div><button class="secondary-button" (click)="loadSales()">↻ Actualizar</button></div><section class="table-panel"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Subtotal</th><th>Envío</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>@for (sale of sales(); track sale.id) { <tr><td class="mono"><strong>#{{ sale.number }}</strong></td><td>{{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</td><td>{{ sale.customerId ? 'Cliente registrado' : 'Consumidor final' }}</td><td>{{ sale.subtotal | currency:'USD' }}</td><td>{{ sale.shippingAmount | currency:'USD' }}</td><td><strong>{{ sale.total | currency:'USD' }}</strong></td><td><span class="stock-pill good">Completada</span></td><td><button class="small-button" (click)="printSale(sale)">Imprimir</button></td></tr> } @empty { <tr><td colspan="8" class="empty">No hay ventas registradas.</td></tr> }</tbody></table></section></section> }
+  </main>
+</div>
+
+@if (showBookForm()) { <div class="modal-backdrop"><section class="modal"><div class="modal-head"><div><p class="eyebrow amber">CATÁLOGO</p><h2>{{ editingBook() ? 'Editar libro' : 'Registrar libro' }}</h2></div><button class="icon-button" (click)="showBookForm.set(false)">×</button></div><div class="scan-box compact"><span>⌕</span><input [(ngModel)]="bookForm.barcode" placeholder="Código de barras"><button class="secondary-button" (click)="scanInventory()">Buscar</button></div><div class="form-grid"><label class="wide">Título<input [(ngModel)]="bookForm.title"></label><label>Autor<input [(ngModel)]="bookForm.author"></label><label>Categoría<input [(ngModel)]="bookForm.category"></label><label>Costo<input type="number" min="0" step="0.01" [(ngModel)]="bookForm.cost"></label><label>Precio de venta<input type="number" min="0" step="0.01" [(ngModel)]="bookForm.salePrice"></label><label>Stock inicial<input type="number" min="0" [(ngModel)]="bookForm.stock"></label><label>Stock mínimo<input type="number" min="0" [(ngModel)]="bookForm.minStock"></label></div><div class="modal-actions"><button class="secondary-button" (click)="showBookForm.set(false)">Cancelar</button><button class="primary-button" (click)="editingBook() ? updateBook() : saveBook()">{{ editingBook() ? 'Guardar cambios' : 'Guardar libro' }}</button></div></section></div> }
+@if (showEntryForm()) { <div class="modal-backdrop"><section class="modal entry-modal"><div class="modal-head"><div><p class="eyebrow amber">INVENTARIO</p><h2>Registrar entrada</h2><p class="muted">{{ editingBook()?.title }}</p></div><button class="icon-button" (click)="showEntryForm.set(false)">×</button></div><div class="form-grid"><label>Cantidad recibida<input type="number" min="1" [(ngModel)]="bookForm.stock"></label><label>Costo unitario<input type="number" min="0" step="0.01" [(ngModel)]="bookForm.cost"></label></div><div class="modal-actions"><button class="secondary-button" (click)="showEntryForm.set(false)">Cancelar</button><button class="primary-button" (click)="saveEntry()">Registrar entrada</button></div></section></div> }
+} @else {
+  <main class="login-screen"><section class="login-card"><div class="brand login-brand"><span class="brand-mark">R</span><span>ROS-TOB</span></div><p class="eyebrow amber">CONTROL DE LIBRERÍA</p><h1>Bienvenido de nuevo.</h1><p class="muted">Ingresa para administrar inventario y ventas.</p><form (ngSubmit)="login()"><label>Usuario<input name="username" [(ngModel)]="loginForm.username" autocomplete="username" required></label><label>Contraseña<input name="password" type="password" [(ngModel)]="loginForm.password" autocomplete="current-password" required></label><button class="primary-button full" type="submit">Iniciar sesión →</button></form><p class="login-hint">Administrador inicial: admin / admin123</p></section></main>
+}
