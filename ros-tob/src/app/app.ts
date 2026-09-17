@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 type View = 'dashboard' | 'inventory' | 'sale' | 'history' | 'users';
 interface Book { id: number; barcode: string; title: string; author: string; category: string; cost: number; salePrice: number; stock: number; minStock: number; }
 interface SaleLine { bookId: number; barcode: string; title: string; quantity: number; unitPrice: number; }
-interface Dashboard { bookCount: number; unitsAvailable: number; todaySales: number; todayTotal: number; lowStock: Book[]; outOfStock: Book[]; recentSales: any[]; }
+interface Dashboard { bookCount: number; unitsAvailable: number; todaySales: number; todayTotal: number; lowStock: Book[]; lowStockTotal: number; outOfStock: Book[]; outOfStockTotal: number; recentSales: any[]; }
 interface SessionUser { id: number; name: string; username: string; email?: string | null; role: string; }
 interface ManagedUser extends SessionUser { active: boolean; }
 
@@ -32,7 +32,11 @@ export class App {
   protected readonly mobileMenuOpen = signal(false);
   protected readonly dashboard = signal<Dashboard | null>(null);
   protected readonly books = signal<Book[]>([]);
+  protected readonly booksPage = signal(1);
+  protected readonly booksHasNextPage = signal(false);
   protected readonly sales = signal<any[]>([]);
+  protected readonly salesPage = signal(1);
+  protected readonly salesHasNextPage = signal(false);
   protected readonly users = signal<ManagedUser[]>([]);
   protected readonly saleLines = signal<SaleLine[]>([]);
   protected readonly notice = signal('');
@@ -52,7 +56,7 @@ export class App {
   protected shippingReference = '';
   protected shippingNote = '';
   protected receivedConfirmed = false;
-  protected loginForm = { identifier: 'admin', password: 'admin123' };
+  protected loginForm = { identifier: '', password: '' };
 
   constructor() { const token = localStorage.getItem('ros-tob-token'); const tokenRole = token ? this.readTokenRole(token) : ''; this.authenticated.set(Boolean(token)); this.isAdmin.set((localStorage.getItem('ros-tob-role') ?? tokenRole) === 'ADMIN'); if (this.authenticated()) this.loadDashboard(); }
 
@@ -65,8 +69,10 @@ export class App {
   protected changeProfile(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file || !file.type.startsWith('image/')) return; const reader = new FileReader(); reader.onload = () => { const image = String(reader.result); localStorage.setItem('ros-tob-profile-image', image); this.profileImage.set(image); }; reader.readAsDataURL(file); }
   protected toggleDarkMode() { const enabled = !this.darkMode(); this.darkMode.set(enabled); localStorage.setItem('ros-tob-dark-mode', String(enabled)); }
   protected toggleMobileMenu() { this.mobileMenuOpen.update((open) => !open); }
-  protected loadDashboard() { this.http.get<Dashboard>('/api/dashboard').subscribe({ next: (data) => this.dashboard.set(data), error: () => this.error.set('No se pudo conectar con la API. Inicia el backend en el puerto 3000.') }); }
-  protected loadBooks() { this.http.get<Book[]>('/api/books', { params: this.search ? { q: this.search } : {} }).subscribe({ next: (data) => this.books.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudo cargar el inventario.') }); }
+  protected loadDashboard() { this.http.get<Dashboard>('/api/dashboard').subscribe({ next: (data) => this.dashboard.set(data), error: (err) => { if (err.status === 401) this.logout(); else this.error.set('No se pudo conectar con la API. Inicia el backend en el puerto 3000.'); } }); }
+  protected loadBooks(page = 1) { this.http.get<{ items: Book[]; page: number; hasNextPage: boolean }>('/api/books', { params: { ...(this.search ? { q: this.search } : {}), page } }).subscribe({ next: (data) => { this.books.set(data.items); this.booksPage.set(data.page); this.booksHasNextPage.set(data.hasNextPage); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo cargar el inventario.') }); }
+  protected previousBooksPage() { if (this.booksPage() > 1) this.loadBooks(this.booksPage() - 1); }
+  protected nextBooksPage() { if (this.booksHasNextPage()) this.loadBooks(this.booksPage() + 1); }
   protected categories() { return [...new Set(this.books().map((book) => book.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)); }
   protected filteredBooks() { return this.books().filter((book) => !this.category || book.category === this.category); }
   protected printInventory() {
@@ -78,12 +84,14 @@ export class App {
     printWindow.document.write(report); printWindow.document.close(); printWindow.focus(); printWindow.print();
   }
   private escapePrint(value: unknown) { return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character] ?? character); }
-  protected loadSales() { this.http.get<any[]>('/api/sales').subscribe({ next: (data) => this.sales.set(data), error: () => this.error.set('No se pudo cargar el historial.') }); }
+  protected loadSales(page = 1) { this.http.get<{ items: any[]; page: number; hasNextPage: boolean }>('/api/sales', { params: { page } }).subscribe({ next: (data) => { this.sales.set(data.items); this.salesPage.set(data.page); this.salesHasNextPage.set(data.hasNextPage); }, error: () => this.error.set('No se pudo cargar el historial.') }); }
+  protected previousSalesPage() { if (this.salesPage() > 1) this.loadSales(this.salesPage() - 1); }
+  protected nextSalesPage() { if (this.salesHasNextPage()) this.loadSales(this.salesPage() + 1); }
   protected loadUsers() { this.http.get<ManagedUser[]>('/api/users').subscribe({ next: (data) => this.users.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudieron cargar los usuarios.') }); }
   protected toggleUser(user: ManagedUser) { this.http.patch<ManagedUser>(`/api/users/${user.id}/status`, { active: !user.active }).subscribe({ next: (updated) => { this.users.update((items) => items.map((item) => item.id === updated.id ? updated : item)); this.notice.set(`${updated.name} ${updated.active ? 'activado' : 'desactivado'}.`); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la cuenta.') }); }
   protected requestPasswordRecovery() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/forgot-password', { identifier: this.forgotIdentifier }).subscribe({ next: (result: any) => { this.recoveryCodeSent.set(true); this.notice.set(result.message); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo solicitar la recuperación.') }); }
-  protected resetPassword() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/reset-password', { identifier: this.forgotIdentifier, code: this.recoveryCode, password: this.recoveryPassword }).subscribe({ next: (result: any) => { this.notice.set(result.message); this.forgotMode.set(false); this.recoveryCodeSent.set(false); this.loginForm.identifier = this.forgotIdentifier; this.loginForm.password = ''; }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la contraseña.') }); }
-  protected deleteSale(sale: any) { if (!this.isAdmin() || !window.confirm(`¿Eliminar la venta #${sale.number}? El stock será restaurado.`)) return; this.http.delete(`/api/sales/${sale.id}`).subscribe({ next: () => { this.notice.set(`Venta #${sale.number} eliminada.`); this.loadSales(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo eliminar la venta.') }); }
+  protected resetPassword() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/reset-password', { identifier: this.forgotIdentifier, code: this.recoveryCode, password: this.recoveryPassword }).subscribe({ next: (result: any) => { this.notice.set(result.message); this.forgotMode.set(false); this.recoveryCodeSent.set(false); this.recoveryCode = ''; this.recoveryPassword = ''; this.loginForm.identifier = this.forgotIdentifier; this.loginForm.password = ''; }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la contraseña.') }); }
+  protected deleteSale(sale: any) { if (!this.isAdmin() || !window.confirm(`¿Eliminar la venta #${sale.number}? El stock será restaurado.`)) return; this.http.delete(`/api/sales/${sale.id}`).subscribe({ next: () => { this.notice.set(`Venta #${sale.number} eliminada.`); this.loadSales(this.salesPage()); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo eliminar la venta.') }); }
   protected printSale(sale: any) {
     this.http.get<any>(`/api/sales/${sale.id}`).subscribe({
       next: (detail) => {
@@ -100,12 +108,13 @@ export class App {
       error: () => this.error.set('No se pudo cargar el detalle de la venta.'),
     });
   }
-  protected searchBooks() { this.loadBooks(); }
+  protected searchBooks() { this.loadBooks(1); }
   protected openNewBook(barcode = '') { this.bookForm = { barcode, title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 }; this.showBookForm.set(true); }
   protected openEditBook(book: Book) { this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: book.stock, minStock: book.minStock }; this.editingBook.set(book); this.showBookForm.set(true); }
   protected openEntry(book: Book) { this.editingBook.set(book); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: 0, minStock: book.minStock }; this.showEntryForm.set(true); }
   protected saveBook() { this.http.post<Book>('/api/books', this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.notice.set('Libro registrado correctamente.'); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar el libro.') }); }
   protected updateBook() { const book = this.editingBook(); if (!book) return; this.http.patch<Book>(`/api/books/${book.id}`, this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.editingBook.set(null); this.notice.set('Libro actualizado correctamente.'); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar el libro.') }); }
+  protected deleteBook(book: Book) { if (!window.confirm(`¿Eliminar "${book.title}" del inventario? El historial de ventas se conservará.`)) return; this.http.delete(`/api/books/${book.id}`).subscribe({ next: () => { this.notice.set(`${book.title} eliminado del inventario.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo eliminar el libro.') }); }
   protected saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.error.set('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notice.set(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
   protected scanInventory() { const code = this.bookForm.barcode.replace(/[\r\n]/g, '').trim(); this.bookForm.barcode = code; if (code) { this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => this.notice.set(`${book.title} encontrado. Stock: ${book.stock}`), error: () => this.openNewBook(code) }); } }
   protected scanSale() { const code = this.barcode.replace(/[\r\n]/g, '').trim(); this.barcode = code; if (!code) return; this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.barcode = ''; this.notice.set(`${book.title} agregado a la venta.`); }, error: () => this.error.set('Código de barras no registrado.') }); }

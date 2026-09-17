@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -13,11 +13,19 @@ import { db } from '../prisma/db.js';
 
 const app = express();
 const port = Number(process.env['PORT'] ?? 3000);
+app.set('trust proxy', 1);
+const jwtSecret = process.env['JWT_SECRET'];
+if (!jwtSecret || jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET debe existir y tener al menos 32 caracteres.');
+}
 
 app.use(helmet());
 app.use(cors({ origin: process.env['FRONTEND_URL'] ?? 'http://localhost:4200' }));
 app.use(express.json({ limit: '1mb' }));
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, message: { message: 'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.' } });
 const authLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5, message: { message: 'Has alcanzado el máximo de 5 intentos. Espera 1 minuto antes de volver a intentar.' } });
+const recoveryLimiter = rateLimit({ windowMs: 5 * 60 * 1000, limit: 3, keyGenerator: (req) => String(req.body?.identifier ?? '').trim().toLowerCase() || ipKeyGenerator(req.ip ?? 'unknown'), message: { message: 'Demasiadas solicitudes de recuperación. Espera 5 minutos antes de volver a intentarlo.' } });
+app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 
 const idSchema = z.coerce.number().int().positive();
@@ -62,12 +70,13 @@ const asyncRoute = (handler: (req: Request, res: Response) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => handler(req, res).catch(next);
 
 const money = (value: unknown) => Number(value ?? 0);
+const hashCode = (code: string) => crypto.createHash('sha256').update(code).digest('hex');
 const publicBook = (book: any) => ({ ...book, cost: money(book.cost), salePrice: money(book.salePrice) });
 const mailer = process.env['SMTP_HOST'] ? nodemailer.createTransport({ host: process.env['SMTP_HOST'], port: Number(process.env['SMTP_PORT'] ?? 587), secure: process.env['SMTP_SECURE'] === 'true', auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] } }) : null;
 const mailFrom = process.env['MAIL_FROM'] ?? process.env['SMTP_USER'];
 const sendCode = async (email: string, subject: string, code: string, action: string) => {
   if (!mailer || !mailFrom) throw new Error('El servicio de correo no está configurado.');
-  await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 1 minuto.` });
+  await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 10 minutos.` });
 };
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'ros-tob-api' }));
@@ -79,54 +88,56 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
   if (user && user.email && !user.emailVerified) { res.status(403).json({ message: 'Debes verificar tu correo antes de iniciar sesión.' }); return; }
   const valid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
   if (!user || !valid) { res.status(401).json({ message: 'Usuario o contraseña incorrectos.' }); return; }
-  const secret = process.env['JWT_SECRET'] ?? 'ros-tob-development-secret-change-me';
-  const token = jwt.sign({ sub: user.id, role: user.role, name: user.name }, secret, { expiresIn: '8h' });
+  const token = jwt.sign({ sub: user.id, role: user.role, name: user.name }, jwtSecret, { expiresIn: '8h' });
   res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } });
 }));
 
-app.post('/api/auth/forgot-password', asyncRoute(async (req, res) => {
+app.post('/api/auth/forgot-password', recoveryLimiter, asyncRoute(async (req, res) => {
   const data = z.object({ identifier: z.string().trim().min(1) }).parse(req.body);
   const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
   if (!user?.email) { res.status(200).json({ message: 'Si la cuenta existe, recibirás instrucciones en su correo.' }); return; }
   const code = crypto.randomInt(100000, 1000000).toString();
-  await db.orm.public.User.where({ id: user.id }).update({ resetCode: code, resetExpiresAt: new Date(Date.now() + 60 * 1000).toISOString() });
+  await db.orm.public.User.where({ id: user.id }).update({ resetCode: hashCode(code), resetExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
   await sendCode(user.email, 'Recuperación de contraseña ROS-TOB', code, 'recuperar tu contraseña');
   res.json({ message: 'Te enviamos un código de recuperación al correo registrado.' });
 }));
 
-app.post('/api/auth/send-verification', asyncRoute(async (req, res) => {
+app.post('/api/auth/send-verification', recoveryLimiter, asyncRoute(async (req, res) => {
   const data = z.object({ identifier: z.string().trim().min(1) }).parse(req.body);
   const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
   if (!user?.email || user.emailVerified) { res.status(200).json({ message: 'Si la cuenta necesita verificación, recibirás un código en su correo.' }); return; }
   const code = crypto.randomInt(100000, 1000000).toString();
-  await db.orm.public.User.where({ id: user.id }).update({ verificationCode: code, verificationExpiresAt: new Date(Date.now() + 60 * 1000).toISOString() });
+  await db.orm.public.User.where({ id: user.id }).update({ verificationCode: hashCode(code), verificationExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
   await sendCode(user.email, 'Verificación de correo ROS-TOB', code, 'verificar tu correo');
   res.json({ message: 'Te enviamos un código de verificación al correo registrado.' });
 }));
 
-app.post('/api/auth/verify-email', asyncRoute(async (req, res) => {
+app.post('/api/auth/verify-email', recoveryLimiter, asyncRoute(async (req, res) => {
   const data = z.object({ identifier: z.string().trim().min(1), code: z.string().trim().length(6) }).parse(req.body);
   const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
-  if (!user || user.emailVerified || user.verificationCode !== data.code || !user.verificationExpiresAt || new Date(user.verificationExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de verificación no es válido o expiró.' }); return; }
+  if (!user || user.emailVerified || user.verificationCode !== hashCode(data.code) || !user.verificationExpiresAt || new Date(user.verificationExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de verificación no es válido o expiró.' }); return; }
   await db.orm.public.User.where({ id: user.id }).update({ emailVerified: true, verificationCode: null, verificationExpiresAt: null });
   res.json({ message: 'Correo verificado. Ya puedes iniciar sesión.' });
 }));
 
-app.post('/api/auth/reset-password', asyncRoute(async (req, res) => {
-  const data = z.object({ identifier: z.string().trim().min(1), code: z.string().trim().length(6), password: z.string().min(8).max(100) }).parse(req.body);
+app.post('/api/auth/reset-password', recoveryLimiter, asyncRoute(async (req, res) => {
+  const data = z.object({ identifier: z.string().trim().min(1), code: z.string().trim().length(6), password: z.string().min(12).max(100) }).parse(req.body);
   const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
-  if (!user || user.resetCode !== data.code || !user.resetExpiresAt || new Date(user.resetExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de recuperación no es válido o expiró.' }); return; }
+  if (!user || user.resetCode !== hashCode(data.code) || !user.resetExpiresAt || new Date(user.resetExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de recuperación no es válido o expiró.' }); return; }
   await db.orm.public.User.where({ id: user.id }).update({ passwordHash: await bcrypt.hash(data.password, 12), resetCode: null, resetExpiresAt: null, emailVerified: true });
   res.json({ message: 'Contraseña actualizada. Ya puedes iniciar sesión.' });
 }));
 
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
+const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authorization = req.headers.authorization;
   const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
   if (!token) { res.status(401).json({ message: 'Sesión requerida.' }); return; }
   try {
-    const payload = jwt.verify(token, process.env['JWT_SECRET'] ?? 'ros-tob-development-secret-change-me');
-    (req as Request & { user?: { role?: string } }).user = payload as { role?: string };
+    const payload = jwt.verify(token, jwtSecret);
+    const userId = Number((payload as jwt.JwtPayload).sub);
+    const user = Number.isInteger(userId) ? await db.orm.public.User.first({ id: userId }) : null;
+    if (!user || !user.active) { res.status(401).json({ message: 'La cuenta está inactiva o la sesión ya no es válida.' }); return; }
+    (req as Request & { user?: { id: number; role: string } }).user = { id: user.id, role: user.role };
     next();
   } catch { res.status(401).json({ message: 'Sesión expirada. Inicia sesión nuevamente.' }); }
 };
@@ -155,15 +166,19 @@ app.patch('/api/users/:id/status', requireAdmin, asyncRoute(async (req, res) => 
 
 app.get('/api/books', asyncRoute(async (req, res) => {
   const search = String(req.query['q'] ?? '').trim();
+  const page = Math.max(1, Number(req.query['page'] ?? 1));
+  const pageSize = 20;
+  const activeBooksQuery = db.orm.public.Book.where({ active: true });
   const books = search
-    ? await db.orm.public.Book.where((book) => or(book.barcode.ilike(`%${search}%`), book.title.ilike(`%${search}%`), book.author.ilike(`%${search}%`), book.category.ilike(`%${search}%`))).orderBy((book) => book.title.asc()).all()
-    : await db.orm.public.Book.orderBy((book) => book.title.asc()).all();
-  res.json(books.map(publicBook));
+    ? await activeBooksQuery.where((book) => or(book.barcode.ilike(`%${search}%`), book.title.ilike(`%${search}%`), book.author.ilike(`%${search}%`), book.category.ilike(`%${search}%`))).orderBy((book) => book.title.asc()).limit(pageSize).offset((page - 1) * pageSize).all()
+    : await activeBooksQuery.orderBy((book) => book.title.asc()).limit(pageSize).offset((page - 1) * pageSize).all();
+  const activeBooks = books.map(publicBook);
+  res.json({ items: activeBooks, page, pageSize, hasNextPage: activeBooks.length === pageSize });
 }));
 
 app.get('/api/books/barcode/:barcode', asyncRoute(async (req, res) => {
   const book = await db.orm.public.Book.where({ barcode: String(req.params['barcode']) }).first();
-  if (!book) {
+  if (!book || !book.active) {
     res.status(404).json({ message: 'Código de barras no registrado.' });
     return;
   }
@@ -172,6 +187,16 @@ app.get('/api/books/barcode/:barcode', asyncRoute(async (req, res) => {
 
 app.post('/api/books', asyncRoute(async (req, res) => {
   const data = bookSchema.parse(req.body);
+  const existing = await db.orm.public.Book.where({ barcode: data.barcode }).first();
+  if (existing?.active) {
+    res.status(409).json({ message: 'Ya existe un libro activo con ese código de barras.' });
+    return;
+  }
+  if (existing && !existing.active) {
+    const book = await db.orm.public.Book.where({ id: existing.id }).update({ ...data, cost: String(data.cost), salePrice: String(data.salePrice), active: true });
+    res.status(200).json(publicBook(book));
+    return;
+  }
   const book = await db.orm.public.Book.create({ ...data, cost: String(data.cost), salePrice: String(data.salePrice) });
   res.status(201).json(publicBook(book));
 }));
@@ -184,6 +209,13 @@ app.patch('/api/books/:id', asyncRoute(async (req, res) => {
   res.json(publicBook(book));
 }));
 
+app.delete('/api/books/:id', asyncRoute(async (req, res) => {
+  const id = idSchema.parse(req.params['id']);
+  const book = await db.orm.public.Book.where({ id }).update({ active: false });
+  if (!book) { res.status(404).json({ message: 'Libro no encontrado.' }); return; }
+  res.json({ message: 'Libro eliminado del inventario.' });
+}));
+
 app.get('/api/dashboard', asyncRoute(async (_req, res) => {
   const [books, sales, recentSales] = await Promise.all([
     db.orm.public.Book.where({ active: true }).all(),
@@ -192,11 +224,15 @@ app.get('/api/dashboard', asyncRoute(async (_req, res) => {
   ]);
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = sales.filter((sale: any) => String(sale.createdAt).slice(0, 10) === today);
+  const lowStock = books.filter((book: any) => book.stock > 0 && book.stock <= book.minStock);
+  const outOfStock = books.filter((book: any) => book.stock === 0);
   res.json({
     bookCount: books.length,
     unitsAvailable: books.reduce((sum: number, book: any) => sum + book.stock, 0),
-    lowStock: books.filter((book: any) => book.stock > 0 && book.stock <= book.minStock).map(publicBook),
-    outOfStock: books.filter((book: any) => book.stock === 0).map(publicBook),
+    lowStock: lowStock.slice(0, 5).map(publicBook),
+    lowStockTotal: lowStock.length,
+    outOfStock: outOfStock.slice(0, 5).map(publicBook),
+    outOfStockTotal: outOfStock.length,
     todaySales: todaySales.length,
     todayTotal: todaySales.reduce((sum: number, sale: any) => sum + money(sale.subtotal) + money(sale.shippingAmount), 0),
     recentSales: recentSales.map((sale: any) => ({ ...sale, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) })),
@@ -204,13 +240,14 @@ app.get('/api/dashboard', asyncRoute(async (_req, res) => {
 }));
 app.post('/api/inventory/entries', asyncRoute(async (req, res) => {
   const data = z.object({ bookId: idSchema, quantity: z.coerce.number().int().positive(), cost: moneySchema.optional(), userId: idSchema.default(1), reason: z.string().trim().max(200).default('Entrada de inventario') }).parse(req.body);
+  const actorUserId = (req as Request & { user?: { id: number } }).user!.id;
   const result = await db.transaction(async (tx) => {
 
     const book = await tx.orm.public.Book.first({ id: data.bookId });
-    if (!book) throw new Error('Libro no encontrado.');
+    if (!book || !book.active) throw new Error('Libro no encontrado.');
     const newStock = book.stock + data.quantity;
     const updated = await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock, ...(data.cost === undefined ? {} : { cost: String(data.cost) }) });
-    await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: data.userId, type: 'ENTRY', quantity: data.quantity, previousStock: book.stock, newStock, reason: data.reason });
+    await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'ENTRY', quantity: data.quantity, previousStock: book.stock, newStock, reason: data.reason });
     return updated;
   });
   res.status(201).json(publicBook(result));
@@ -223,12 +260,16 @@ app.get('/api/movements', asyncRoute(async (_req, res) => {
 
 app.post('/api/sales', asyncRoute(async (req, res) => {
   const data = saleSchema.parse(req.body);
+  const actorUserId = (req as Request & { user?: { id: number } }).user!.id;
   const shippingAmount = data.shippingActive ? data.shippingAmount : 0;
-  const result = await db.transaction(async (tx) => {
+  let result;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await db.transaction(async (tx) => {
     const books = await Promise.all(data.items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
     books.forEach((book, index) => {
       const item = data.items[index]!;
-      if (!book) throw new Error('Uno de los libros no existe.');
+      if (!book || !book.active) throw new Error('Uno de los libros no existe.');
       if (book.stock < item.quantity) throw new Error(`Stock insuficiente para ${book.title}.`);
     });
     const customer = data.customer?.name ? await tx.orm.public.Customer.create({
@@ -240,9 +281,9 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
     }) : null;
     const sales = await tx.orm.public.Sale.all();
     const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
-    const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const subtotal = data.items.reduce((sum, item, index) => sum + item.quantity * money(books[index]!.salePrice), 0);
     const sale = await tx.orm.public.Sale.create({
-      number, customerId: customer?.id ?? null, userId: data.userId, subtotal: String(subtotal),
+      number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
       shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
       receivedConfirmed: data.receivedConfirmed, status: 'COMPLETED',
       ...(data.shippingAddress === undefined ? {} : { shippingAddress: data.shippingAddress }),
@@ -255,22 +296,31 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
       const item = data.items[index]!;
       const book = books[index]!;
       const newStock = book.stock - item.quantity;
-      await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(item.unitPrice), total: String(item.quantity * item.unitPrice) });
+      const unitPrice = money(book.salePrice);
+      await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(unitPrice), total: String(item.quantity * unitPrice) });
       await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock });
-      await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: data.userId, type: 'SALE', quantity: item.quantity, previousStock: book.stock, newStock, reason: `Venta #${number}` });
+      await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'SALE', quantity: item.quantity, previousStock: book.stock, newStock, reason: `Venta #${number}` });
     }
     return { ...sale, subtotal: money(sale.subtotal), shippingAmount, total: subtotal + shippingAmount };
-  });
+      });
+      break;
+    } catch (error) {
+      const isNumberCollision = error instanceof Error && /unique|duplicate|number/i.test(error.message);
+      if (!isNumberCollision || attempt === 2) throw error;
+    }
+  }
   res.status(201).json(result);
 }));
 
-app.get('/api/sales', asyncRoute(async (_req, res) => {
-  const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(100).all();
+app.get('/api/sales', asyncRoute(async (req, res) => {
+  const page = Math.max(1, Number(req.query['page'] ?? 1));
+  const pageSize = 20;
+  const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(pageSize).offset((page - 1) * pageSize).all();
   const result = await Promise.all(sales.map(async (sale: any) => {
     const customer = sale.customerId ? await db.orm.public.Customer.first({ id: sale.customerId }) : null;
     return { ...sale, customerName: customer?.name ?? null, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) };
   }));
-  res.json(result);
+  res.json({ items: result, page, pageSize, hasNextPage: result.length === pageSize });
 }));
 
 app.get('/api/sales/:id', asyncRoute(async (req, res) => {
@@ -304,18 +354,19 @@ app.delete('/api/sales/:id', requireAdmin, asyncRoute(async (req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof z.ZodError) { res.status(400).json({ message: 'Datos inválidos.', errors: error.flatten() }); return; }
-  const message = error instanceof Error ? error.message : 'Error interno del servidor.';
-  res.status(400).json({ message });
+  console.error('Unhandled API error', error);
+  res.status(500).json({ message: 'Error interno del servidor.' });
 });
 
 const ensureDefaultUser = async () => {
+  const adminPassword = process.env['INITIAL_ADMIN_PASSWORD'];
+  const sellerPassword = process.env['INITIAL_SELLER_PASSWORD'];
   const user = await db.orm.public.User.first({ id: 1 });
   if (!user) {
-    await db.orm.public.User.create({ id: 1, name: 'Erick', username: 'admin', email: 'ericks.mejia2005@gmail.com', emailVerified: true, passwordHash: await bcrypt.hash('admin123', 12), role: 'ADMIN', active: true });
+    if (!adminPassword || adminPassword.length < 12) throw new Error('INITIAL_ADMIN_PASSWORD debe tener al menos 12 caracteres.');
+    await db.orm.public.User.create({ id: 1, name: 'Erick', username: 'admin', email: 'ericks.mejia2005@gmail.com', emailVerified: true, passwordHash: await bcrypt.hash(adminPassword, 12), role: 'ADMIN', active: true });
   } else if (user.name !== 'Erick') {
     await db.orm.public.User.where({ id: 1 }).update({ name: 'Erick' });
-  } else if (user.passwordHash === 'local-admin') {
-    await db.orm.public.User.where({ id: 1 }).update({ passwordHash: await bcrypt.hash('admin123', 12), active: true });
   }
   await db.orm.public.User.where({ id: 1 }).update({ email: 'ericks.mejia2005@gmail.com', emailVerified: true });
   const additionalUsers = [
@@ -324,7 +375,10 @@ const ensureDefaultUser = async () => {
   ];
   for (const account of additionalUsers) {
     const existing = await db.orm.public.User.first({ id: account.id });
-    if (!existing) await db.orm.public.User.create({ ...account, emailVerified: true, passwordHash: await bcrypt.hash('admin123', 12), role: 'SELLER', active: true });
+    if (!existing) {
+      if (!sellerPassword || sellerPassword.length < 12) throw new Error('INITIAL_SELLER_PASSWORD debe tener al menos 12 caracteres.');
+      await db.orm.public.User.create({ ...account, emailVerified: true, passwordHash: await bcrypt.hash(sellerPassword, 12), role: 'SELLER', active: true });
+    }
     else await db.orm.public.User.where({ id: account.id }).update({ emailVerified: true });
   }
 };
