@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'655671576298b6f479b6f9fff3edf8437bd4aa224c31dfd3c916526cfa537b30'>;
+  StorageHashBase<'a10b1f96e287f5ff37f43c83697f56f4c7b9db403b75559cca85830bde807773'>;
 export type ExecutionHash =
   ExecutionHashBase<'30051face0944a00afd9b3cac02eca89aa5a914110e500bc6c08e4b2868884a5'>;
 export type ProfileHash =
@@ -309,11 +309,6 @@ export type FieldOutputTypes = {
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly username: CodecTypes['pg/text@1']['output'];
       readonly email: CodecTypes['pg/text@1']['output'] | null;
-      readonly emailVerified: CodecTypes['pg/bool@1']['output'];
-      readonly verificationCode: CodecTypes['pg/text@1']['output'] | null;
-      readonly verificationExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-      readonly resetCode: CodecTypes['pg/text@1']['output'] | null;
-      readonly resetExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
       readonly passwordHash: CodecTypes['pg/text@1']['output'];
       readonly role: CodecTypes['pg/text@1']['output'];
       readonly active: CodecTypes['pg/bool@1']['output'];
@@ -391,11 +386,6 @@ export type FieldInputTypes = {
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly username: CodecTypes['pg/text@1']['input'];
       readonly email: CodecTypes['pg/text@1']['input'] | null;
-      readonly emailVerified: CodecTypes['pg/bool@1']['input'];
-      readonly verificationCode: CodecTypes['pg/text@1']['input'] | null;
-      readonly verificationExpiresAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
-      readonly resetCode: CodecTypes['pg/text@1']['input'] | null;
-      readonly resetExpiresAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
       readonly passwordHash: CodecTypes['pg/text@1']['input'];
       readonly role: CodecTypes['pg/text@1']['input'];
       readonly active: CodecTypes['pg/bool@1']['input'];
@@ -472,17 +462,12 @@ export type StorageColumnTypes = {
       readonly active: CodecTypes['pg/bool@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly email: CodecTypes['pg/text@1']['output'] | null;
-      readonly emailVerified: CodecTypes['pg/bool@1']['output'];
       readonly id: CodecTypes['pg/int4@1']['output'];
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly passwordHash: CodecTypes['pg/text@1']['output'];
-      readonly resetCode: CodecTypes['pg/text@1']['output'] | null;
-      readonly resetExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
       readonly role: CodecTypes['pg/text@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly username: CodecTypes['pg/text@1']['output'];
-      readonly verificationCode: CodecTypes['pg/text@1']['output'] | null;
-      readonly verificationExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
     };
   };
 };
@@ -554,17 +539,12 @@ export type StorageColumnInputTypes = {
       readonly active: CodecTypes['pg/bool@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly email: CodecTypes['pg/text@1']['input'] | null;
-      readonly emailVerified: CodecTypes['pg/bool@1']['input'];
       readonly id: CodecTypes['pg/int4@1']['input'];
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly passwordHash: CodecTypes['pg/text@1']['input'];
-      readonly resetCode: CodecTypes['pg/text@1']['input'] | null;
-      readonly resetExpiresAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
       readonly role: CodecTypes['pg/text@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly username: CodecTypes['pg/text@1']['input'];
-      readonly verificationCode: CodecTypes['pg/text@1']['input'] | null;
-      readonly verificationExpiresAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
     };
   };
 };
@@ -575,11 +555,6 @@ export namespace Models {
     name: CodecTypes['pg/text@1']['output'];
     username: CodecTypes['pg/text@1']['output'];
     email: CodecTypes['pg/text@1']['output'] | null;
-    emailVerified: CodecTypes['pg/bool@1']['output'];
-    verificationCode: CodecTypes['pg/text@1']['output'] | null;
-    verificationExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    resetCode: CodecTypes['pg/text@1']['output'] | null;
-    resetExpiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
     passwordHash: CodecTypes['pg/text@1']['output'];
     role: CodecTypes['pg/text@1']['output'];
     active: CodecTypes['pg/bool@1']['output'];
@@ -1189,35 +1164,6 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                 };
-                readonly emailVerified: {
-                  readonly nativeType: 'bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
-                  };
-                };
-                readonly verificationCode: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                };
-                readonly verificationExpiresAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: true;
-                };
-                readonly resetCode: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                };
-                readonly resetExpiresAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: true;
-                };
                 readonly passwordHash: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
@@ -1740,32 +1686,6 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly emailVerified: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly verificationCode: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly verificationExpiresAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
-              readonly resetCode: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly resetExpiresAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
               readonly passwordHash: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -1822,11 +1742,6 @@ type ContractBase = Omit<
                 readonly name: { readonly column: 'name' };
                 readonly username: { readonly column: 'username' };
                 readonly email: { readonly column: 'email' };
-                readonly emailVerified: { readonly column: 'emailVerified' };
-                readonly verificationCode: { readonly column: 'verificationCode' };
-                readonly verificationExpiresAt: { readonly column: 'verificationExpiresAt' };
-                readonly resetCode: { readonly column: 'resetCode' };
-                readonly resetExpiresAt: { readonly column: 'resetExpiresAt' };
                 readonly passwordHash: { readonly column: 'passwordHash' };
                 readonly role: { readonly column: 'role' };
                 readonly active: { readonly column: 'active' };

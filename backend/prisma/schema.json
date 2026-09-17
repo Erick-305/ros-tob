@@ -785,6 +785,20 @@
                   "kind": "scalar"
                 }
               },
+              "email": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "emailVerified": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -806,6 +820,20 @@
                   "kind": "scalar"
                 }
               },
+              "resetCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "resetExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
               "role": {
                 "nullable": false,
                 "type": {
@@ -824,6 +852,20 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "verificationCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "verificationExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
               }
@@ -868,6 +910,12 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "email": {
+                  "column": "email"
+                },
+                "emailVerified": {
+                  "column": "emailVerified"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -877,6 +925,12 @@
                 "passwordHash": {
                   "column": "passwordHash"
                 },
+                "resetCode": {
+                  "column": "resetCode"
+                },
+                "resetExpiresAt": {
+                  "column": "resetExpiresAt"
+                },
                 "role": {
                   "column": "role"
                 },
@@ -885,6 +939,12 @@
                 },
                 "username": {
                   "column": "username"
+                },
+                "verificationCode": {
+                  "column": "verificationCode"
+                },
+                "verificationExpiresAt": {
+                  "column": "verificationExpiresAt"
                 }
               },
               "namespaceId": "public",
@@ -1466,6 +1526,20 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "email": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "emailVerified": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/int4@1",
                   "default": {
@@ -1485,6 +1559,16 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "resetCode": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "resetExpiresAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
                 "role": {
                   "codecId": "pg/text@1",
                   "default": {
@@ -1503,6 +1587,16 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "verificationCode": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "verificationExpiresAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
                 }
               },
               "foreignKeys": [],
@@ -1517,6 +1611,11 @@
                   "columns": [
                     "username"
                   ]
+                },
+                {
+                  "columns": [
+                    "email"
+                  ]
                 }
               ]
             }
@@ -1526,7 +1625,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7493754c84cbea05c88ac082a86a2854b4bc8d7333467cb3bbc92de6232e5111"
+    "storageHash": "655671576298b6f479b6f9fff3edf8437bd4aa224c31dfd3c916526cfa537b30"
   },
   "execution": {
     "executionHash": "30051face0944a00afd9b3cac02eca89aa5a914110e500bc6c08e4b2868884a5",

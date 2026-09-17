@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { or } from '@prisma/orm-postgres/orm-client';
@@ -15,7 +17,7 @@ const port = Number(process.env['PORT'] ?? 3000);
 app.use(helmet());
 app.use(cors({ origin: process.env['FRONTEND_URL'] ?? 'http://localhost:4200' }));
 app.use(express.json({ limit: '1mb' }));
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, message: { message: 'Demasiados intentos. Espera unos minutos.' } });
+const authLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5, message: { message: 'Has alcanzado el máximo de 5 intentos. Espera 1 minuto antes de volver a intentar.' } });
 app.use('/api/auth', authLimiter);
 
 const idSchema = z.coerce.number().int().positive();
@@ -61,17 +63,61 @@ const asyncRoute = (handler: (req: Request, res: Response) => Promise<void>) =>
 
 const money = (value: unknown) => Number(value ?? 0);
 const publicBook = (book: any) => ({ ...book, cost: money(book.cost), salePrice: money(book.salePrice) });
+const mailer = process.env['SMTP_HOST'] ? nodemailer.createTransport({ host: process.env['SMTP_HOST'], port: Number(process.env['SMTP_PORT'] ?? 587), secure: process.env['SMTP_SECURE'] === 'true', auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] } }) : null;
+const mailFrom = process.env['MAIL_FROM'] ?? process.env['SMTP_USER'];
+const sendCode = async (email: string, subject: string, code: string, action: string) => {
+  if (!mailer || !mailFrom) throw new Error('El servicio de correo no está configurado.');
+  await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 1 minuto.` });
+};
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'ros-tob-api' }));
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
-  const data = z.object({ username: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
-  const user = await db.orm.public.User.where({ username: data.username, active: true }).first();
+  const data = z.object({ identifier: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
+  const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
+  if (user && !user.active) { res.status(403).json({ message: 'Esta cuenta está inactiva. Solicita al administrador que la active.' }); return; }
+  if (user && user.email && !user.emailVerified) { res.status(403).json({ message: 'Debes verificar tu correo antes de iniciar sesión.' }); return; }
   const valid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
   if (!user || !valid) { res.status(401).json({ message: 'Usuario o contraseña incorrectos.' }); return; }
   const secret = process.env['JWT_SECRET'] ?? 'ros-tob-development-secret-change-me';
   const token = jwt.sign({ sub: user.id, role: user.role, name: user.name }, secret, { expiresIn: '8h' });
-  res.json({ token, user: { id: user.id, name: user.name, username: user.username, role: user.role } });
+  res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } });
+}));
+
+app.post('/api/auth/forgot-password', asyncRoute(async (req, res) => {
+  const data = z.object({ identifier: z.string().trim().min(1) }).parse(req.body);
+  const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
+  if (!user?.email) { res.status(200).json({ message: 'Si la cuenta existe, recibirás instrucciones en su correo.' }); return; }
+  const code = crypto.randomInt(100000, 1000000).toString();
+  await db.orm.public.User.where({ id: user.id }).update({ resetCode: code, resetExpiresAt: new Date(Date.now() + 60 * 1000).toISOString() });
+  await sendCode(user.email, 'Recuperación de contraseña ROS-TOB', code, 'recuperar tu contraseña');
+  res.json({ message: 'Te enviamos un código de recuperación al correo registrado.' });
+}));
+
+app.post('/api/auth/send-verification', asyncRoute(async (req, res) => {
+  const data = z.object({ identifier: z.string().trim().min(1) }).parse(req.body);
+  const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
+  if (!user?.email || user.emailVerified) { res.status(200).json({ message: 'Si la cuenta necesita verificación, recibirás un código en su correo.' }); return; }
+  const code = crypto.randomInt(100000, 1000000).toString();
+  await db.orm.public.User.where({ id: user.id }).update({ verificationCode: code, verificationExpiresAt: new Date(Date.now() + 60 * 1000).toISOString() });
+  await sendCode(user.email, 'Verificación de correo ROS-TOB', code, 'verificar tu correo');
+  res.json({ message: 'Te enviamos un código de verificación al correo registrado.' });
+}));
+
+app.post('/api/auth/verify-email', asyncRoute(async (req, res) => {
+  const data = z.object({ identifier: z.string().trim().min(1), code: z.string().trim().length(6) }).parse(req.body);
+  const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
+  if (!user || user.emailVerified || user.verificationCode !== data.code || !user.verificationExpiresAt || new Date(user.verificationExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de verificación no es válido o expiró.' }); return; }
+  await db.orm.public.User.where({ id: user.id }).update({ emailVerified: true, verificationCode: null, verificationExpiresAt: null });
+  res.json({ message: 'Correo verificado. Ya puedes iniciar sesión.' });
+}));
+
+app.post('/api/auth/reset-password', asyncRoute(async (req, res) => {
+  const data = z.object({ identifier: z.string().trim().min(1), code: z.string().trim().length(6), password: z.string().min(8).max(100) }).parse(req.body);
+  const user = await db.orm.public.User.where((candidate) => or(candidate.username.ilike(data.identifier), candidate.email.ilike(data.identifier))).first();
+  if (!user || user.resetCode !== data.code || !user.resetExpiresAt || new Date(user.resetExpiresAt) < new Date()) { res.status(400).json({ message: 'El código de recuperación no es válido o expiró.' }); return; }
+  await db.orm.public.User.where({ id: user.id }).update({ passwordHash: await bcrypt.hash(data.password, 12), resetCode: null, resetExpiresAt: null, emailVerified: true });
+  res.json({ message: 'Contraseña actualizada. Ya puedes iniciar sesión.' });
 }));
 
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
@@ -79,12 +125,33 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
   if (!token) { res.status(401).json({ message: 'Sesión requerida.' }); return; }
   try {
-    jwt.verify(token, process.env['JWT_SECRET'] ?? 'ros-tob-development-secret-change-me');
+    const payload = jwt.verify(token, process.env['JWT_SECRET'] ?? 'ros-tob-development-secret-change-me');
+    (req as Request & { user?: { role?: string } }).user = payload as { role?: string };
     next();
   } catch { res.status(401).json({ message: 'Sesión expirada. Inicia sesión nuevamente.' }); }
 };
 
+const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as Request & { user?: { role?: string } }).user;
+  if (user?.role !== 'ADMIN') { res.status(403).json({ message: 'Solo un administrador puede realizar esta acción.' }); return; }
+  next();
+};
+
 app.use('/api', authenticate);
+
+app.get('/api/users', requireAdmin, asyncRoute(async (_req, res) => {
+  const users = await db.orm.public.User.orderBy((user) => user.id.asc()).all();
+  res.json(users.map((user: any) => ({ id: user.id, name: user.name, username: user.username, email: user.email, role: user.role, active: user.active })));
+}));
+
+app.patch('/api/users/:id/status', requireAdmin, asyncRoute(async (req, res) => {
+  const id = idSchema.parse(req.params['id']);
+  const data = z.object({ active: z.boolean() }).parse(req.body);
+  if (id === 1) { res.status(400).json({ message: 'La cuenta de Erick no se puede desactivar.' }); return; }
+  const user = await db.orm.public.User.where({ id }).update({ active: data.active });
+  if (!user) { res.status(404).json({ message: 'Usuario no encontrado.' }); return; }
+  res.json({ id: user.id, name: user.name, username: user.username, email: user.email, role: user.role, active: user.active });
+}));
 
 app.get('/api/books', asyncRoute(async (req, res) => {
   const search = String(req.query['q'] ?? '').trim();
@@ -131,14 +198,14 @@ app.get('/api/dashboard', asyncRoute(async (_req, res) => {
     lowStock: books.filter((book: any) => book.stock > 0 && book.stock <= book.minStock).map(publicBook),
     outOfStock: books.filter((book: any) => book.stock === 0).map(publicBook),
     todaySales: todaySales.length,
-    todayTotal: todaySales.reduce((sum: number, sale: any) => sum + money(sale.total), 0),
+    todayTotal: todaySales.reduce((sum: number, sale: any) => sum + money(sale.subtotal) + money(sale.shippingAmount), 0),
     recentSales: recentSales.map((sale: any) => ({ ...sale, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) })),
   });
 }));
-
 app.post('/api/inventory/entries', asyncRoute(async (req, res) => {
   const data = z.object({ bookId: idSchema, quantity: z.coerce.number().int().positive(), cost: moneySchema.optional(), userId: idSchema.default(1), reason: z.string().trim().max(200).default('Entrada de inventario') }).parse(req.body);
   const result = await db.transaction(async (tx) => {
+
     const book = await tx.orm.public.Book.first({ id: data.bookId });
     if (!book) throw new Error('Libro no encontrado.');
     const newStock = book.stock + data.quantity;
@@ -199,7 +266,11 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
 
 app.get('/api/sales', asyncRoute(async (_req, res) => {
   const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(100).all();
-  res.json(sales.map((sale: any) => ({ ...sale, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) })));
+  const result = await Promise.all(sales.map(async (sale: any) => {
+    const customer = sale.customerId ? await db.orm.public.Customer.first({ id: sale.customerId }) : null;
+    return { ...sale, customerName: customer?.name ?? null, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) };
+  }));
+  res.json(result);
 }));
 
 app.get('/api/sales/:id', asyncRoute(async (req, res) => {
@@ -213,6 +284,24 @@ app.get('/api/sales/:id', asyncRoute(async (req, res) => {
   res.json({ ...sale, customer, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
 }));
 
+app.delete('/api/sales/:id', requireAdmin, asyncRoute(async (req, res) => {
+  const id = idSchema.parse(req.params['id']);
+  await db.transaction(async (tx) => {
+    const sale = await tx.orm.public.Sale.first({ id });
+    if (!sale) throw new Error('Venta no encontrada.');
+    const items = await tx.orm.public.SaleItem.where({ saleId: id }).all();
+    for (const item of items) {
+      const book = await tx.orm.public.Book.first({ id: item.bookId });
+      if (!book) continue;
+      await tx.orm.public.Book.where({ id: book.id }).update({ stock: book.stock + item.quantity });
+      await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: sale.userId, type: 'SALE_REVERSAL', quantity: item.quantity, previousStock: book.stock, newStock: book.stock + item.quantity, reason: `Eliminación de venta #${sale.number}` });
+    }
+    for (const item of items) await tx.orm.public.SaleItem.where({ id: item.id }).delete();
+    await tx.orm.public.Sale.where({ id }).delete();
+  });
+  res.json({ message: 'Venta eliminada y stock restaurado.' });
+}));
+
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof z.ZodError) { res.status(400).json({ message: 'Datos inválidos.', errors: error.flatten() }); return; }
   const message = error instanceof Error ? error.message : 'Error interno del servidor.';
@@ -222,9 +311,21 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 const ensureDefaultUser = async () => {
   const user = await db.orm.public.User.first({ id: 1 });
   if (!user) {
-    await db.orm.public.User.create({ id: 1, name: 'Administrador', username: 'admin', passwordHash: await bcrypt.hash('admin123', 12), role: 'ADMIN', active: true });
+    await db.orm.public.User.create({ id: 1, name: 'Erick', username: 'admin', email: 'ericks.mejia2005@gmail.com', emailVerified: true, passwordHash: await bcrypt.hash('admin123', 12), role: 'ADMIN', active: true });
+  } else if (user.name !== 'Erick') {
+    await db.orm.public.User.where({ id: 1 }).update({ name: 'Erick' });
   } else if (user.passwordHash === 'local-admin') {
     await db.orm.public.User.where({ id: 1 }).update({ passwordHash: await bcrypt.hash('admin123', 12), active: true });
+  }
+  await db.orm.public.User.where({ id: 1 }).update({ email: 'ericks.mejia2005@gmail.com', emailVerified: true });
+  const additionalUsers = [
+    { id: 2, name: 'Filiblu DJ', username: 'filiblu_dj', email: 'filiblu_dj@hotmail.com' },
+    { id: 3, name: 'Rosario Chayito', username: 'rosariochayito664', email: 'rosariochayito664@gmail.com' },
+  ];
+  for (const account of additionalUsers) {
+    const existing = await db.orm.public.User.first({ id: account.id });
+    if (!existing) await db.orm.public.User.create({ ...account, emailVerified: true, passwordHash: await bcrypt.hash('admin123', 12), role: 'SELLER', active: true });
+    else await db.orm.public.User.where({ id: account.id }).update({ emailVerified: true });
   }
 };
 

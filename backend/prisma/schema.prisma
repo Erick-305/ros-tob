@@ -4,6 +4,12 @@ model User {
   id           Int                   @id @default(autoincrement())
   name         String
   username     String                @unique
+  email        String?               @unique
+  emailVerified Boolean               @default(false)
+  verificationCode String?
+  verificationExpiresAt TimestamptzString?
+  resetCode    String?
+  resetExpiresAt TimestamptzString?
   passwordHash String
   role         String                @default("SELLER")
   active       Boolean               @default(true)
