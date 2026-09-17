@@ -20,7 +20,11 @@ if (!jwtSecret || jwtSecret.length < 32) {
 }
 
 app.use(helmet());
-app.use(cors({ origin: process.env['FRONTEND_URL'] ?? 'http://localhost:4200' }));
+const allowedOrigins = (process.env['FRONTEND_URL'] ?? 'https://ros-tob.web.app,http://localhost:4200')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '1mb' }));
 const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, message: { message: 'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.' } });
 const authLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5, message: { message: 'Has alcanzado el máximo de 5 intentos. Espera 1 minuto antes de volver a intentar.' } });
