@@ -1,97 +1,105 @@
-// use prisma-8
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
 
 model User {
-  id           Int                   @id @default(autoincrement())
-  name         String
-  username     String                @unique
-  email        String?               @unique
-  emailVerified Boolean               @default(false)
-  verificationCode String?
-  verificationExpiresAt TimestamptzString?
-  resetCode    String?
-  resetExpiresAt TimestamptzString?
-  passwordHash String
-  role         String                @default("SELLER")
-  active       Boolean               @default(true)
-  sales        Sale[]
-  movements    InventoryMovement[]
-  createdAt    TimestamptzString     @default(now())
-  updatedAt    temporal.updatedAtString()
+  id                    Int                 @id @default(autoincrement())
+  name                  String
+  username              String              @unique
+  email                 String?             @unique
+  emailVerified         Boolean             @default(false)
+  verificationCode      String?
+  verificationExpiresAt DateTime?
+  resetCode             String?
+  resetExpiresAt        DateTime?
+  passwordHash          String
+  role                  String              @default("SELLER")
+  active                Boolean             @default(true)
+  sales                 Sale[]
+  movements             InventoryMovement[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 }
 
 model Book {
-  id          Int                   @id @default(autoincrement())
-  barcode     String                @unique
-  title       String
-  author      String
-  category    String
-  cost        Numeric
-  salePrice   Numeric
-  stock       Int                   @default(0)
-  minStock    Int                   @default(0)
-  active      Boolean               @default(true)
-  saleItems   SaleItem[]
-  movements   InventoryMovement[]
-  createdAt   TimestamptzString     @default(now())
-  updatedAt   temporal.updatedAtString()
+  id        Int                 @id @default(autoincrement())
+  barcode   String              @unique
+  title     String
+  author    String
+  category  String
+  cost      Decimal
+  salePrice Decimal
+  stock     Int                 @default(0)
+  minStock  Int                 @default(0)
+  active    Boolean             @default(true)
+  saleItems SaleItem[]
+  movements InventoryMovement[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 }
 
 model Customer {
-  id          Int                   @id @default(autoincrement())
-  taxId       String?
-  name        String
-  phone       String?
-  email       String?
-  address     String?
-  sales       Sale[]
-  createdAt   TimestamptzString     @default(now())
-  updatedAt   temporal.updatedAtString()
+  id        Int        @id @default(autoincrement())
+  taxId     String?
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  sales     Sale[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Sale {
-  id                 Int                   @id @default(autoincrement())
-  number             Int                   @unique
-  customer           Customer?             @relation(fields: [customerId], references: [id])
+  id                 Int        @id @default(autoincrement())
+  number             Int        @unique
+  customer           Customer?  @relation(fields: [customerId], references: [id])
   customerId         Int?
-  user               User                  @relation(fields: [userId], references: [id])
+  user               User       @relation(fields: [userId], references: [id])
   userId             Int
-  subtotal           Numeric
-  shippingActive     Boolean               @default(false)
-  shippingAmount     Numeric               @default("0")
+  subtotal           Decimal
+  shippingActive     Boolean    @default(false)
+  shippingAmount     Decimal    @default(0)
   shippingAddress    String?
   shippingReference  String?
   shippingNote       String?
-  receivedConfirmed  Boolean               @default(false)
+  receivedConfirmed  Boolean    @default(false)
   receivedName       String?
   receivedId         String?
-  status             String                @default("COMPLETED")
+  status             String     @default("COMPLETED")
   items              SaleItem[]
-  createdAt          TimestamptzString     @default(now())
+  createdAt          DateTime   @default(now())
 }
 
 model SaleItem {
-  id          Int                   @id @default(autoincrement())
-  sale        Sale                  @relation(fields: [saleId], references: [id])
+  id          Int     @id @default(autoincrement())
+  sale        Sale    @relation(fields: [saleId], references: [id])
   saleId      Int
-  book        Book                  @relation(fields: [bookId], references: [id])
+  book        Book    @relation(fields: [bookId], references: [id])
   bookId      Int
   barcode     String
   description String
   quantity    Int
-  unitPrice   Numeric
-  total       Numeric
+  unitPrice   Decimal
+  total       Decimal
 }
 
 model InventoryMovement {
-  id            Int                   @id @default(autoincrement())
-  book          Book                  @relation(fields: [bookId], references: [id])
+  id            Int      @id @default(autoincrement())
+  book          Book     @relation(fields: [bookId], references: [id])
   bookId        Int
-  user          User                  @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
   userId        Int
   type          String
   quantity      Int
   previousStock Int
   newStock      Int
   reason        String
-  createdAt     TimestamptzString     @default(now())
+  createdAt     DateTime @default(now())
 }
