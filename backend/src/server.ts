@@ -83,7 +83,7 @@ const sendCode = async (email: string, subject: string, code: string, action: st
   await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 10 minutos.` });
 };
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'ros-tob-api' }));
+app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, service: 'ros-tob-api' }));
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const data = z.object({ identifier: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
