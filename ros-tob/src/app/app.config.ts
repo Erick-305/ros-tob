@@ -3,12 +3,12 @@ import { HttpInterceptorFn, provideHttpClient, withInterceptors } from '@angular
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 
-const productionApiUrl = 'https://ros-tob-backend.onrender.com';
+const productionApiUrl = 'https://ros-tob-production-ad3d.up.railway.app/api';
 
 const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = localStorage.getItem('ros-tob-token');
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const apiUrl = !isLocal && request.url.startsWith('/api') ? `${productionApiUrl}${request.url}` : request.url;
+  const apiUrl = !isLocal && request.url.startsWith('/api') ? `${productionApiUrl}${request.url.slice('/api'.length)}` : request.url;
   const updatedRequest = request.clone({
     url: apiUrl,
     ...(token ? { setHeaders: { Authorization: `Bearer ${token}` } } : {}),
