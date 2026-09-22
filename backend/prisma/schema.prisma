@@ -8,12 +8,12 @@ model Book {
   barcode            String              @unique(map: "book_barcode_key")
   category           String
   cost               Numeric
-  createdAt          Timestamptz         @default(now())
+  createdAt          TimestamptzString   @default(now())
   minStock           Int                 @default(0)
   salePrice          Numeric
   stock              Int                 @default(0)
   title              String
-  updatedAt          Timestamptz @default(now())
+  updatedAt          TimestamptzString @default(now())
   inventoryMovements InventoryMovement[]
   saleItems          SaleItem[]
 
@@ -23,12 +23,12 @@ model Book {
 model Customer {
   id        Int         @id(map: "customer_pkey") @default(autoincrement())
   address   String?
-  createdAt Timestamptz @default(now())
+  createdAt TimestamptzString @default(now())
   email     String?
   name      String
   phone     String?
   taxId     String?
-  updatedAt Timestamptz @default(now())
+  updatedAt TimestamptzString @default(now())
   city      String?
   sales     Sale[]
 
@@ -38,18 +38,18 @@ model Customer {
 model User {
   id                    Int                 @id(map: "user_pkey") @default(autoincrement())
   active                Boolean             @default(true)
-  createdAt             Timestamptz         @default(now())
+  createdAt             TimestamptzString   @default(now())
   email                 String?             @unique(map: "user_email_key")
   emailVerified         Boolean             @default(false)
   name                  String
   passwordHash          String
   resetCode             String?
-  resetExpiresAt        Timestamptz?
+  resetExpiresAt        TimestamptzString?
   role                  String              @default("SELLER")
-  updatedAt             Timestamptz @default(now())
+  updatedAt             TimestamptzString @default(now())
   username              String              @unique(map: "user_username_key")
   verificationCode      String?
-  verificationExpiresAt Timestamptz?
+  verificationExpiresAt TimestamptzString?
   inventoryMovements    InventoryMovement[]
   sales                 Sale[]
 
@@ -59,7 +59,7 @@ model User {
 model InventoryMovement {
   id            Int         @id(map: "inventoryMovement_pkey") @default(autoincrement())
   bookId        Int
-  createdAt     Timestamptz @default(now())
+  createdAt     TimestamptzString @default(now())
   newStock      Int
   previousStock Int
   quantity      Int
@@ -76,7 +76,7 @@ model InventoryMovement {
 
 model Sale {
   id                Int         @id(map: "sale_pkey") @default(autoincrement())
-  createdAt         Timestamptz @default(now())
+  createdAt         TimestamptzString @default(now())
   customerId        Int?
   number            Int         @unique(map: "sale_number_key")
   receivedConfirmed Boolean     @default(false)
