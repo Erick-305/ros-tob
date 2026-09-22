@@ -9,7 +9,7 @@ interface SaleLine { bookId: number; barcode: string; title: string; quantity: n
 interface Dashboard { bookCount: number; unitsAvailable: number; todaySales: number; todayTotal: number; lowStock: Book[]; lowStockTotal: number; outOfStock: Book[]; outOfStockTotal: number; recentSales: any[]; }
 interface SessionUser { id: number; name: string; username: string; email?: string | null; role: string; }
 interface ManagedUser extends SessionUser { active: boolean; }
-interface Customer { id: number; taxId?: string | null; name: string; phone?: string | null; email?: string | null; address?: string | null; }
+interface Customer { id: number; taxId?: string | null; name: string; phone?: string | null; email?: string | null; address?: string | null; city?: string | null; }
 
 @Component({
   imports: [FormsModule, CurrencyPipe, DatePipe, NgClass],
@@ -55,7 +55,7 @@ export class App {
   protected category = '';
   protected barcode = '';
   protected bookForm = { barcode: '', title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 };
-  protected customer = { taxId: '', name: '', phone: '', email: '', address: '' };
+  protected customer = { taxId: '', name: '', phone: '', email: '', address: '', city: '' };
   protected shippingActive = false;
   protected shippingAmount = 0;
   protected shippingAddress = '';
@@ -95,8 +95,8 @@ export class App {
   protected nextSalesPage() { if (this.salesHasNextPage()) this.loadSales(this.salesPage() + 1); }
   protected loadUsers() { this.http.get<ManagedUser[]>('/api/users').subscribe({ next: (data) => this.users.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudieron cargar los usuarios.') }); }
   protected loadCustomers() { this.http.get<Customer[]>('/api/customers').subscribe({ next: (data) => this.customers.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudieron cargar los clientes.') }); }
-  protected filteredCustomers() { const query = this.customerSearch.trim().toLowerCase(); return this.customers().filter((customer) => !query || [customer.name, customer.taxId, customer.email, customer.phone].some((value) => String(value ?? '').toLowerCase().includes(query))); }
-  protected selectCustomer(customer: Customer) { this.selectedCustomerId.set(customer.id); this.customer = { taxId: customer.taxId ?? '', name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '' }; this.showSaleCustomer.set(true); }
+  protected filteredCustomers() { const query = this.customerSearch.trim().toLowerCase(); return this.customers().filter((customer) => !query || [customer.name, customer.taxId, customer.email, customer.phone, customer.city].some((value) => String(value ?? '').toLowerCase().includes(query))); }
+  protected selectCustomer(customer: Customer) { this.selectedCustomerId.set(customer.id); this.customer = { taxId: customer.taxId ?? '', name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '', city: customer.city ?? '' }; this.showSaleCustomer.set(true); }
   protected toggleUser(user: ManagedUser) { this.http.patch<ManagedUser>(`/api/users/${user.id}/status`, { active: !user.active }).subscribe({ next: (updated) => { this.users.update((items) => items.map((item) => item.id === updated.id ? updated : item)); this.notice.set(`${updated.name} ${updated.active ? 'activado' : 'desactivado'}.`); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la cuenta.') }); }
   protected requestPasswordRecovery() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/forgot-password', { identifier: this.forgotIdentifier }).subscribe({ next: (result: any) => { this.recoveryCodeSent.set(true); this.notice.set(result.message); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo solicitar la recuperación.') }); }
   protected resetPassword() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/reset-password', { identifier: this.forgotIdentifier, code: this.recoveryCode, password: this.recoveryPassword }).subscribe({ next: (result: any) => { this.notice.set(result.message); this.forgotMode.set(false); this.recoveryCodeSent.set(false); this.recoveryCode = ''; this.recoveryPassword = ''; this.loginForm.identifier = this.forgotIdentifier; this.loginForm.password = ''; }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la contraseña.') }); }
@@ -105,7 +105,7 @@ export class App {
     this.http.get<any>(`/api/sales/${sale.id}`).subscribe({
       next: (detail) => {
         const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character] ?? character);
-        const customer = detail.customer ?? {};
+        const customer = { ...(detail.customer ?? {}), address: [detail.customer?.address, detail.customer?.city].filter(Boolean).join(', ') };
         const date = new Date(detail.createdAt).toLocaleDateString('es-EC');
         const items = detail.items.map((item: any) => `<tr><td>${item.quantity}</td><td>${escapeHtml(item.description)}</td><td>$${Number(item.unitPrice).toFixed(2)}</td><td>$${Number(item.total).toFixed(2)}</td></tr>`).join('');
         const receipt = `<html><head><title>Nota de venta #${detail.number} - ROS-TOB</title><style>
@@ -133,5 +133,5 @@ export class App {
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0); }
   protected total() { return this.subtotal() + (this.shippingActive ? Number(this.shippingAmount) || 0 : 0); }
-  protected finalizeSale() { if (!this.saleLines().length) { this.error.set('Agrega al menos un libro a la venta.'); return; } const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: line.quantity, unitPrice: line.unitPrice })), customer: this.customer.name ? this.customer : undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed }; this.http.post<any>('/api/sales', payload).subscribe({ next: (sale) => { this.completedSale.set(sale); this.notice.set(`Venta #${String(sale.number).padStart(6, '0')} finalizada.`); this.saleLines.set([]); this.customer = { taxId: '', name: '', phone: '', email: '', address: '' }; this.selectedCustomerId.set(null); this.shippingActive = false; this.shippingAmount = 0; this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo finalizar la venta.') }); }
+  protected finalizeSale() { if (!this.saleLines().length) { this.error.set('Agrega al menos un libro a la venta.'); return; } const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: line.quantity, unitPrice: line.unitPrice })), customer: this.customer.name ? this.customer : undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed }; this.http.post<any>('/api/sales', payload).subscribe({ next: (sale) => { this.completedSale.set(sale); this.notice.set(`Venta #${String(sale.number).padStart(6, '0')} finalizada.`); this.saleLines.set([]); this.customer = { taxId: '', name: '', phone: '', email: '', address: '', city: '' }; this.selectedCustomerId.set(null); this.shippingActive = false; this.shippingAmount = 0; this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo finalizar la venta.') }); }
 }

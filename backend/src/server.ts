@@ -53,6 +53,7 @@ const saleSchema = z.object({
     phone: z.string().trim().max(40).optional(),
     email: z.string().trim().email().optional().or(z.literal('')),
     address: z.string().trim().max(250).optional(),
+    city: z.string().trim().max(100).optional(),
   }).optional(),
   userId: idSchema.default(1),
   items: z.array(z.object({
@@ -177,7 +178,7 @@ app.patch('/api/users/:id/status', requireAdmin, asyncRoute(async (req, res) => 
 app.get('/api/customers', asyncRoute(async (req, res) => {
   const search = String(req.query['q'] ?? '').trim();
   const customers = search
-    ? await db.orm.public.Customer.where((customer) => or(customer.name.ilike(`%${search}%`), customer.taxId.ilike(`%${search}%`), customer.email.ilike(`%${search}%`), customer.phone.ilike(`%${search}%`))).orderBy((customer) => customer.name.asc()).limit(30).all()
+    ? await db.orm.public.Customer.where((customer) => or(customer.name.ilike(`%${search}%`), customer.taxId.ilike(`%${search}%`), customer.email.ilike(`%${search}%`), customer.phone.ilike(`%${search}%`), customer.city.ilike(`%${search}%`))).orderBy((customer) => customer.name.asc()).limit(30).all()
     : await db.orm.public.Customer.orderBy((customer) => customer.name.asc()).limit(100).all();
   res.json(customers);
 }));
@@ -303,6 +304,7 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
             ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
             ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
             ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
+            ...(data.customer.city === undefined ? {} : { city: data.customer.city }),
           };
           customer = existingCustomer
             ? await tx.orm.public.Customer.where({ id: existingCustomer.id }).update(customerData)

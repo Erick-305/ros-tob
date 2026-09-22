@@ -1,105 +1,117 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
-model User {
-  id                    Int                 @id @default(autoincrement())
-  name                  String
-  username              String              @unique
-  email                 String?             @unique
-  emailVerified         Boolean             @default(false)
-  verificationCode      String?
-  verificationExpiresAt DateTime?
-  resetCode             String?
-  resetExpiresAt        DateTime?
-  passwordHash          String
-  role                  String              @default("SELLER")
-  active                Boolean             @default(true)
-  sales                 Sale[]
-  movements             InventoryMovement[]
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-}
+// use prisma-8
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
 model Book {
-  id        Int                 @id @default(autoincrement())
-  barcode   String              @unique
-  title     String
-  author    String
-  category  String
-  cost      Decimal
-  salePrice Decimal
-  stock     Int                 @default(0)
-  minStock  Int                 @default(0)
-  active    Boolean             @default(true)
-  saleItems SaleItem[]
-  movements InventoryMovement[]
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id                 Int                 @id(map: "book_pkey") @default(autoincrement())
+  active             Boolean             @default(true)
+  author             String
+  barcode            String              @unique(map: "book_barcode_key")
+  category           String
+  cost               Numeric
+  createdAt          Timestamptz         @default(now())
+  minStock           Int                 @default(0)
+  salePrice          Numeric
+  stock              Int                 @default(0)
+  title              String
+  updatedAt          Timestamptz @default(now())
+  inventoryMovements InventoryMovement[]
+  saleItems          SaleItem[]
+
+  @@map("book")
 }
 
 model Customer {
-  id        Int        @id @default(autoincrement())
-  taxId     String?
+  id        Int         @id(map: "customer_pkey") @default(autoincrement())
+  address   String?
+  createdAt Timestamptz @default(now())
+  email     String?
   name      String
   phone     String?
-  email     String?
-  address   String?
+  taxId     String?
+  updatedAt Timestamptz @default(now())
+  city      String?
   sales     Sale[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+
+  @@map("customer")
 }
 
-model Sale {
-  id                 Int        @id @default(autoincrement())
-  number             Int        @unique
-  customer           Customer?  @relation(fields: [customerId], references: [id])
-  customerId         Int?
-  user               User       @relation(fields: [userId], references: [id])
-  userId             Int
-  subtotal           Decimal
-  shippingActive     Boolean    @default(false)
-  shippingAmount     Decimal    @default(0)
-  shippingAddress    String?
-  shippingReference  String?
-  shippingNote       String?
-  receivedConfirmed  Boolean    @default(false)
-  receivedName       String?
-  receivedId         String?
-  status             String     @default("COMPLETED")
-  items              SaleItem[]
-  createdAt          DateTime   @default(now())
-}
+model User {
+  id                    Int                 @id(map: "user_pkey") @default(autoincrement())
+  active                Boolean             @default(true)
+  createdAt             Timestamptz         @default(now())
+  email                 String?             @unique(map: "user_email_key")
+  emailVerified         Boolean             @default(false)
+  name                  String
+  passwordHash          String
+  resetCode             String?
+  resetExpiresAt        Timestamptz?
+  role                  String              @default("SELLER")
+  updatedAt             Timestamptz @default(now())
+  username              String              @unique(map: "user_username_key")
+  verificationCode      String?
+  verificationExpiresAt Timestamptz?
+  inventoryMovements    InventoryMovement[]
+  sales                 Sale[]
 
-model SaleItem {
-  id          Int     @id @default(autoincrement())
-  sale        Sale    @relation(fields: [saleId], references: [id])
-  saleId      Int
-  book        Book    @relation(fields: [bookId], references: [id])
-  bookId      Int
-  barcode     String
-  description String
-  quantity    Int
-  unitPrice   Decimal
-  total       Decimal
+  @@map("user")
 }
 
 model InventoryMovement {
-  id            Int      @id @default(autoincrement())
-  book          Book     @relation(fields: [bookId], references: [id])
+  id            Int         @id(map: "inventoryMovement_pkey") @default(autoincrement())
   bookId        Int
-  user          User     @relation(fields: [userId], references: [id])
-  userId        Int
-  type          String
-  quantity      Int
-  previousStock Int
+  createdAt     Timestamptz @default(now())
   newStock      Int
+  previousStock Int
+  quantity      Int
   reason        String
-  createdAt     DateTime @default(now())
+  type          String      @map("type")
+  userId        Int
+  book          Book        @relation(fields: [bookId], references: [id], map: "inventoryMovement_bookId_fkey")
+  user          User        @relation(fields: [userId], references: [id], map: "inventoryMovement_userId_fkey")
+
+  @@index([bookId], name: "inventoryMovement_bookId_idx")
+  @@index([userId], name: "inventoryMovement_userId_idx")
+  @@map("inventoryMovement")
+}
+
+model Sale {
+  id                Int         @id(map: "sale_pkey") @default(autoincrement())
+  createdAt         Timestamptz @default(now())
+  customerId        Int?
+  number            Int         @unique(map: "sale_number_key")
+  receivedConfirmed Boolean     @default(false)
+  receivedId        String?
+  receivedName      String?
+  shippingActive    Boolean     @default(false)
+  shippingAddress   String?
+  shippingAmount    Numeric     @default("0")
+  shippingNote      String?
+  shippingReference String?
+  status            String      @default("COMPLETED")
+  subtotal          Numeric
+  userId            Int
+  saleItems         SaleItem[]
+  customer          Customer?   @relation(fields: [customerId], references: [id], map: "sale_customerId_fkey")
+  user              User        @relation(fields: [userId], references: [id], map: "sale_userId_fkey")
+
+  @@index([customerId], name: "sale_customerId_idx")
+  @@index([userId], name: "sale_userId_idx")
+  @@map("sale")
+}
+
+model SaleItem {
+  id          Int     @id(map: "saleItem_pkey") @default(autoincrement())
+  barcode     String
+  bookId      Int
+  description String
+  quantity    Int
+  saleId      Int
+  total       Numeric
+  unitPrice   Numeric
+  book        Book    @relation(fields: [bookId], references: [id], map: "saleItem_bookId_fkey")
+  sale        Sale    @relation(fields: [saleId], references: [id], map: "saleItem_saleId_fkey")
+
+  @@index([bookId], name: "saleItem_bookId_idx")
+  @@index([saleId], name: "saleItem_saleId_idx")
+  @@map("saleItem")
 }

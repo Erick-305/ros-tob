@@ -73,7 +73,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -115,13 +115,13 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               }
             },
             "relations": {
-              "movements": {
+              "inventoryMovements": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -204,10 +204,17 @@
                   "kind": "scalar"
                 }
               },
+              "city": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -249,7 +256,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               }
@@ -275,6 +282,9 @@
               "fields": {
                 "address": {
                   "column": "address"
+                },
+                "city": {
+                  "column": "city"
                 },
                 "createdAt": {
                   "column": "createdAt"
@@ -314,7 +324,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -441,7 +451,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -561,7 +571,7 @@
                   "namespace": "public"
                 }
               },
-              "items": {
+              "saleItems": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -781,7 +791,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -830,7 +840,7 @@
               "resetExpiresAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -844,7 +854,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -865,13 +875,13 @@
               "verificationExpiresAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "kind": "scalar"
                 }
               }
             },
             "relations": {
-              "movements": {
+              "inventoryMovements": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -992,7 +1002,7 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -1038,7 +1048,11 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 }
@@ -1048,13 +1062,15 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "book_pkey"
               },
               "uniques": [
                 {
                   "columns": [
                     "barcode"
-                  ]
+                  ],
+                  "name": "book_barcode_key"
                 }
               ]
             },
@@ -1065,8 +1081,13 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "city": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -1104,7 +1125,11 @@
                   "nullable": true
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 }
@@ -1114,7 +1139,8 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "customer_pkey"
               },
               "uniques": []
             },
@@ -1126,7 +1152,7 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -1176,6 +1202,7 @@
               },
               "foreignKeys": [
                 {
+                  "name": "inventoryMovement_bookId_fkey",
                   "source": {
                     "columns": [
                       "bookId"
@@ -1192,6 +1219,7 @@
                   }
                 },
                 {
+                  "name": "inventoryMovement_userId_fkey",
                   "source": {
                     "columns": [
                       "userId"
@@ -1229,14 +1257,15 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "inventoryMovement_pkey"
               },
               "uniques": []
             },
             "sale": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -1337,6 +1366,7 @@
               },
               "foreignKeys": [
                 {
+                  "name": "sale_customerId_fkey",
                   "source": {
                     "columns": [
                       "customerId"
@@ -1353,6 +1383,7 @@
                   }
                 },
                 {
+                  "name": "sale_userId_fkey",
                   "source": {
                     "columns": [
                       "userId"
@@ -1390,13 +1421,15 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "sale_pkey"
               },
               "uniques": [
                 {
                   "columns": [
                     "number"
-                  ]
+                  ],
+                  "name": "sale_number_key"
                 }
               ]
             },
@@ -1449,22 +1482,7 @@
               },
               "foreignKeys": [
                 {
-                  "source": {
-                    "columns": [
-                      "saleId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "saleItem"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "sale"
-                  }
-                },
-                {
+                  "name": "saleItem_bookId_fkey",
                   "source": {
                     "columns": [
                       "bookId"
@@ -1478,6 +1496,23 @@
                     ],
                     "namespaceId": "public",
                     "tableName": "book"
+                  }
+                },
+                {
+                  "name": "saleItem_saleId_fkey",
+                  "source": {
+                    "columns": [
+                      "saleId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "saleItem"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale"
                   }
                 }
               ],
@@ -1502,7 +1537,8 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "saleItem_pkey"
               },
               "uniques": []
             },
@@ -1518,7 +1554,7 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -1565,7 +1601,7 @@
                   "nullable": true
                 },
                 "resetExpiresAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "nativeType": "timestamptz",
                   "nullable": true
                 },
@@ -1579,7 +1615,11 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -1594,7 +1634,7 @@
                   "nullable": true
                 },
                 "verificationExpiresAt": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/timestamptz-temporal@1",
                   "nativeType": "timestamptz",
                   "nullable": true
                 }
@@ -1604,18 +1644,21 @@
               "primaryKey": {
                 "columns": [
                   "id"
-                ]
+                ],
+                "name": "user_pkey"
               },
               "uniques": [
                 {
                   "columns": [
-                    "username"
-                  ]
+                    "email"
+                  ],
+                  "name": "user_email_key"
                 },
                 {
                   "columns": [
-                    "email"
-                  ]
+                    "username"
+                  ],
+                  "name": "user_username_key"
                 }
               ]
             }
@@ -1625,59 +1668,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "655671576298b6f479b6f9fff3edf8437bd4aa224c31dfd3c916526cfa537b30"
-  },
-  "execution": {
-    "executionHash": "30051face0944a00afd9b3cac02eca89aa5a914110e500bc6c08e4b2868884a5",
-    "mutations": {
-      "defaults": [
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "book"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "customer"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "user"
-          }
-        }
-      ]
-    }
+    "storageHash": "f5e2d5baa87ebf1f9e498738c890bcbb295ad34c0efc91a4eaa44c3f97a2371a"
   },
   "capabilities": {
     "postgres": {
