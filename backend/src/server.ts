@@ -284,53 +284,53 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       result = await db.transaction(async (tx) => {
-    const books = await Promise.all(data.items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
-    books.forEach((book, index) => {
-      const item = data.items[index]!;
-      if (!book || !book.active) throw new Error('Uno de los libros no existe.');
-      if (book.stock < item.quantity) throw new Error(`Stock insuficiente para ${book.title}.`);
-    });
-    let customer = null;
-    if (data.customer?.name) {
-      const existingCustomer = data.customer.email
-        ? await tx.orm.public.Customer.where({ email: data.customer.email }).first()
-        : data.customer.taxId
-          ? await tx.orm.public.Customer.where({ taxId: data.customer.taxId }).first()
-          : null;
-      const customerData = {
-        name: data.customer.name,
-        ...(data.customer.taxId === undefined ? {} : { taxId: data.customer.taxId }),
-        ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
-        ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
-        ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
-      };
-      customer = existingCustomer
-        ? await tx.orm.public.Customer.where({ id: existingCustomer.id }).update(customerData)
-        : await tx.orm.public.Customer.create(customerData);
-    }
-    const sales = await tx.orm.public.Sale.all();
-    const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
-    const subtotal = data.items.reduce((sum, item, index) => sum + item.quantity * money(books[index]!.salePrice), 0);
-    const sale = await tx.orm.public.Sale.create({
-      number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
-      shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
-      receivedConfirmed: data.receivedConfirmed, status: 'COMPLETED',
-      ...(data.shippingAddress === undefined ? {} : { shippingAddress: data.shippingAddress }),
-      ...(data.shippingReference === undefined ? {} : { shippingReference: data.shippingReference }),
-      ...(data.shippingNote === undefined ? {} : { shippingNote: data.shippingNote }),
-      ...(data.receivedName === undefined ? {} : { receivedName: data.receivedName }),
-      ...(data.receivedId === undefined ? {} : { receivedId: data.receivedId }),
-    });
-    for (let index = 0; index < data.items.length; index += 1) {
-      const item = data.items[index]!;
-      const book = books[index]!;
-      const newStock = book.stock - item.quantity;
-      const unitPrice = money(book.salePrice);
-      await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(unitPrice), total: String(item.quantity * unitPrice) });
-      await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock });
-      await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'SALE', quantity: item.quantity, previousStock: book.stock, newStock, reason: `Venta #${number}` });
-    }
-    return { ...sale, subtotal: money(sale.subtotal), shippingAmount, total: subtotal + shippingAmount };
+        const books = await Promise.all(data.items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
+        books.forEach((book, index) => {
+          const item = data.items[index]!;
+          if (!book || !book.active) throw new Error('Uno de los libros no existe.');
+          if (book.stock < item.quantity) throw new Error(`Stock insuficiente para ${book.title}.`);
+        });
+        let customer = null;
+        if (data.customer?.name) {
+          const existingCustomer = data.customer.email
+            ? await tx.orm.public.Customer.where({ email: data.customer.email }).first()
+            : data.customer.taxId
+              ? await tx.orm.public.Customer.where({ taxId: data.customer.taxId }).first()
+              : null;
+          const customerData = {
+            name: data.customer.name,
+            ...(data.customer.taxId === undefined ? {} : { taxId: data.customer.taxId }),
+            ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
+            ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
+            ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
+          };
+          customer = existingCustomer
+            ? await tx.orm.public.Customer.where({ id: existingCustomer.id }).update(customerData)
+            : await tx.orm.public.Customer.create(customerData);
+        }
+        const sales = await tx.orm.public.Sale.all();
+        const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
+        const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+        const sale = await tx.orm.public.Sale.create({
+          number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
+          shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
+          receivedConfirmed: data.receivedConfirmed, status: 'COMPLETED',
+          ...(data.shippingAddress === undefined ? {} : { shippingAddress: data.shippingAddress }),
+          ...(data.shippingReference === undefined ? {} : { shippingReference: data.shippingReference }),
+          ...(data.shippingNote === undefined ? {} : { shippingNote: data.shippingNote }),
+          ...(data.receivedName === undefined ? {} : { receivedName: data.receivedName }),
+          ...(data.receivedId === undefined ? {} : { receivedId: data.receivedId }),
+        });
+        for (let index = 0; index < data.items.length; index += 1) {
+          const item = data.items[index]!;
+          const book = books[index]!;
+          const newStock = book.stock - item.quantity;
+          const unitPrice = item.unitPrice;
+          await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(unitPrice), total: String(item.quantity * unitPrice) });
+          await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock });
+          await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'SALE', quantity: item.quantity, previousStock: book.stock, newStock, reason: `Venta #${number}` });
+        }
+        return { ...sale, subtotal: money(sale.subtotal), shippingAmount, total: subtotal + shippingAmount };
       });
       break;
     } catch (error) {
