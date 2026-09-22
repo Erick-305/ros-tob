@@ -113,7 +113,7 @@ export class App {
         const printWindow = window.open('', '_blank', 'width=900,height=1000');
         if (!printWindow) { this.error.set('El navegador bloqueó la ventana de impresión.'); return; }
         const compactReceipt = receipt
-          .replace('</style>', '.note,.note .field,.note .items,.note .items th,.note .items td,.note .total-row{font-size:9px!important}.note .title h1{font-size:13px!important}.note .total-row.final{font-size:12px!important}.note .items{table-layout:auto}.note .items th,.note .items td{width:auto!important;white-space:nowrap}.note .items th:nth-child(2),.note .items td:nth-child(2){width:100%!important;white-space:normal}</style>');
+          .replace('</style>', '@page{margin:0}.note{margin:8mm auto 0}.note,.note .field,.note .items,.note .items th,.note .items td,.note .total-row{font-size:9px!important}.note .title h1{font-size:13px!important}.note .total-row.final{font-size:12px!important}.note .items{table-layout:auto}.note .items th,.note .items td{width:auto!important;white-space:nowrap}.note .items th:nth-child(2),.note .items td:nth-child(2){width:100%!important;white-space:normal}</style>');
         printWindow.document.write(compactReceipt.replace('<div class="title">', '<div class="title" style="position:relative"><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#163d62;font:bold 16px Arial,sans-serif;white-space:nowrap">ROS-TOB</span>')); printWindow.document.close(); printWindow.focus(); printWindow.print();
       },
       error: () => this.error.set('No se pudo cargar el detalle de la venta.'),
