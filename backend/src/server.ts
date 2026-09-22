@@ -91,6 +91,9 @@ const getMailer = async () => {
     secure: process.env['SMTP_SECURE'] === 'true',
     auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] },
     tls: { servername: smtpHost },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 8000,
   });
   return cachedMailer;
 };
@@ -120,8 +123,8 @@ app.post('/api/auth/forgot-password', recoveryLimiter, asyncRoute(async (req, re
   if (!user?.email) { res.status(200).json({ message: 'Si la cuenta existe, recibirás instrucciones en su correo.' }); return; }
   const code = crypto.randomInt(100000, 1000000).toString();
   await db.orm.public.User.where({ id: user.id }).update({ resetCode: hashCode(code), resetExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
-  await sendCode(user.email, 'Recuperación de contraseña ROS-TOB', code, 'recuperar tu contraseña');
   res.json({ message: 'Te enviamos un código de recuperación al correo registrado.' });
+  sendCode(user.email, 'Recuperación de contraseña ROS-TOB', code, 'recuperar tu contraseña').catch((error) => console.error('No se pudo enviar el correo de recuperación', error));
 }));
 
 app.post('/api/auth/send-verification', recoveryLimiter, asyncRoute(async (req, res) => {
@@ -130,8 +133,8 @@ app.post('/api/auth/send-verification', recoveryLimiter, asyncRoute(async (req, 
   if (!user?.email || user.emailVerified) { res.status(200).json({ message: 'Si la cuenta necesita verificación, recibirás un código en su correo.' }); return; }
   const code = crypto.randomInt(100000, 1000000).toString();
   await db.orm.public.User.where({ id: user.id }).update({ verificationCode: hashCode(code), verificationExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
-  await sendCode(user.email, 'Verificación de correo ROS-TOB', code, 'verificar tu correo');
   res.json({ message: 'Te enviamos un código de verificación al correo registrado.' });
+  sendCode(user.email, 'Verificación de correo ROS-TOB', code, 'verificar tu correo').catch((error) => console.error('No se pudo enviar el correo de verificación', error));
 }));
 
 app.post('/api/auth/verify-email', recoveryLimiter, asyncRoute(async (req, res) => {
