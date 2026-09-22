@@ -13,7 +13,7 @@ model Book {
   salePrice          Numeric
   stock              Int                 @default(0)
   title              String
-  updatedAt          TimestamptzString @default(now())
+  updatedAt          TimestamptzString   @default(now())
   inventoryMovements InventoryMovement[]
   saleItems          SaleItem[]
 
@@ -21,7 +21,7 @@ model Book {
 }
 
 model Customer {
-  id        Int         @id(map: "customer_pkey") @default(autoincrement())
+  id        Int               @id(map: "customer_pkey") @default(autoincrement())
   address   String?
   createdAt TimestamptzString @default(now())
   email     String?
@@ -46,7 +46,7 @@ model User {
   resetCode             String?
   resetExpiresAt        TimestamptzString?
   role                  String              @default("SELLER")
-  updatedAt             TimestamptzString @default(now())
+  updatedAt             TimestamptzString   @default(now())
   username              String              @unique(map: "user_username_key")
   verificationCode      String?
   verificationExpiresAt TimestamptzString?
@@ -57,14 +57,14 @@ model User {
 }
 
 model InventoryMovement {
-  id            Int         @id(map: "inventoryMovement_pkey") @default(autoincrement())
+  id            Int               @id(map: "inventoryMovement_pkey") @default(autoincrement())
   bookId        Int
   createdAt     TimestamptzString @default(now())
   newStock      Int
   previousStock Int
   quantity      Int
   reason        String
-  type          String      @map("type")
+  type          String            @map("type")
   userId        Int
   book          Book        @relation(fields: [bookId], references: [id], map: "inventoryMovement_bookId_fkey")
   user          User        @relation(fields: [userId], references: [id], map: "inventoryMovement_userId_fkey")
@@ -75,7 +75,7 @@ model InventoryMovement {
 }
 
 model Sale {
-  id                Int         @id(map: "sale_pkey") @default(autoincrement())
+  id                Int               @id(map: "sale_pkey") @default(autoincrement())
   createdAt         TimestamptzString @default(now())
   customerId        Int?
   number            Int         @unique(map: "sale_number_key")
