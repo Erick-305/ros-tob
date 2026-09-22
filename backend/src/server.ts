@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import crypto from 'node:crypto';
+import dns from 'node:dns';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
@@ -77,15 +78,25 @@ const asyncRoute = (handler: (req: Request, res: Response) => Promise<void>) =>
 const money = (value: unknown) => Number(value ?? 0);
 const hashCode = (code: string) => crypto.createHash('sha256').update(code).digest('hex');
 const publicBook = (book: any) => ({ ...book, cost: money(book.cost), salePrice: money(book.salePrice) });
-const mailer = process.env['SMTP_HOST'] ? nodemailer.createTransport({
-  host: process.env['SMTP_HOST'],
-  port: Number(process.env['SMTP_PORT'] ?? 465),
-  secure: process.env['SMTP_SECURE'] === 'true',
-  family: 4,
-  auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] },
-} as any) : null;
+const smtpHost = process.env['SMTP_HOST'];
+let cachedMailer: ReturnType<typeof nodemailer.createTransport> | null = null;
+const getMailer = async () => {
+  if (!smtpHost) return null;
+  if (cachedMailer) return cachedMailer;
+  // Resuelve por IPv4 a mano: Nodemailer elige al azar entre A/AAAA y Railway no tiene salida IPv6.
+  const { address } = await dns.promises.lookup(smtpHost, { family: 4 });
+  cachedMailer = nodemailer.createTransport({
+    host: address,
+    port: Number(process.env['SMTP_PORT'] ?? 465),
+    secure: process.env['SMTP_SECURE'] === 'true',
+    auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] },
+    tls: { servername: smtpHost },
+  });
+  return cachedMailer;
+};
 const mailFrom = process.env['MAIL_FROM'] ?? process.env['SMTP_USER'];
 const sendCode = async (email: string, subject: string, code: string, action: string) => {
+  const mailer = await getMailer();
   if (!mailer || !mailFrom) throw new Error('El servicio de correo no está configurado.');
   await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 10 minutos.` });
 };
