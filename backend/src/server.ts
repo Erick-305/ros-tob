@@ -174,6 +174,14 @@ app.patch('/api/users/:id/status', requireAdmin, asyncRoute(async (req, res) => 
   res.json({ id: user.id, name: user.name, username: user.username, email: user.email, role: user.role, active: user.active });
 }));
 
+app.get('/api/customers', asyncRoute(async (req, res) => {
+  const search = String(req.query['q'] ?? '').trim();
+  const customers = search
+    ? await db.orm.public.Customer.where((customer) => or(customer.name.ilike(`%${search}%`), customer.taxId.ilike(`%${search}%`), customer.email.ilike(`%${search}%`), customer.phone.ilike(`%${search}%`))).orderBy((customer) => customer.name.asc()).limit(30).all()
+    : await db.orm.public.Customer.orderBy((customer) => customer.name.asc()).limit(100).all();
+  res.json(customers);
+}));
+
 app.get('/api/books', asyncRoute(async (req, res) => {
   const search = String(req.query['q'] ?? '').trim();
   const page = Math.max(1, Number(req.query['page'] ?? 1));
@@ -282,13 +290,24 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
       if (!book || !book.active) throw new Error('Uno de los libros no existe.');
       if (book.stock < item.quantity) throw new Error(`Stock insuficiente para ${book.title}.`);
     });
-    const customer = data.customer?.name ? await tx.orm.public.Customer.create({
-      name: data.customer.name,
-      ...(data.customer.taxId === undefined ? {} : { taxId: data.customer.taxId }),
-      ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
-      ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
-      ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
-    }) : null;
+    let customer = null;
+    if (data.customer?.name) {
+      const existingCustomer = data.customer.email
+        ? await tx.orm.public.Customer.where({ email: data.customer.email }).first()
+        : data.customer.taxId
+          ? await tx.orm.public.Customer.where({ taxId: data.customer.taxId }).first()
+          : null;
+      const customerData = {
+        name: data.customer.name,
+        ...(data.customer.taxId === undefined ? {} : { taxId: data.customer.taxId }),
+        ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
+        ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
+        ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
+      };
+      customer = existingCustomer
+        ? await tx.orm.public.Customer.where({ id: existingCustomer.id }).update(customerData)
+        : await tx.orm.public.Customer.create(customerData);
+    }
     const sales = await tx.orm.public.Sale.all();
     const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
     const subtotal = data.items.reduce((sum, item, index) => sum + item.quantity * money(books[index]!.salePrice), 0);
@@ -344,7 +363,7 @@ app.get('/api/sales/:id', asyncRoute(async (req, res) => {
   res.json({ ...sale, customer, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
 }));
 
-app.delete('/api/sales/:id', requireAdmin, asyncRoute(async (req, res) => {
+app.delete('/api/sales/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   await db.transaction(async (tx) => {
     const sale = await tx.orm.public.Sale.first({ id });

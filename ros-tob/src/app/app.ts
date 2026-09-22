@@ -9,6 +9,7 @@ interface SaleLine { bookId: number; barcode: string; title: string; quantity: n
 interface Dashboard { bookCount: number; unitsAvailable: number; todaySales: number; todayTotal: number; lowStock: Book[]; lowStockTotal: number; outOfStock: Book[]; outOfStockTotal: number; recentSales: any[]; }
 interface SessionUser { id: number; name: string; username: string; email?: string | null; role: string; }
 interface ManagedUser extends SessionUser { active: boolean; }
+interface Customer { id: number; taxId?: string | null; name: string; phone?: string | null; email?: string | null; address?: string | null; }
 
 @Component({
   imports: [FormsModule, CurrencyPipe, DatePipe, NgClass],
@@ -18,6 +19,7 @@ interface ManagedUser extends SessionUser { active: boolean; }
 })
 export class App {
   private readonly http = inject(HttpClient);
+  protected readonly todayLabel = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()).toUpperCase();
   protected readonly view = signal<View>('dashboard');
   protected readonly authenticated = signal(false);
   protected readonly currentUser = signal<SessionUser | null>(this.readStoredUser());
@@ -38,6 +40,9 @@ export class App {
   protected readonly salesPage = signal(1);
   protected readonly salesHasNextPage = signal(false);
   protected readonly users = signal<ManagedUser[]>([]);
+  protected readonly customers = signal<Customer[]>([]);
+  protected customerSearch = '';
+  protected readonly selectedCustomerId = signal<number | null>(null);
   protected readonly saleLines = signal<SaleLine[]>([]);
   protected readonly notice = signal('');
   protected readonly error = signal('');
@@ -63,7 +68,7 @@ export class App {
   private readTokenRole(token: string) { try { return JSON.parse(atob(token.split('.')[1] ?? '')).role ?? ''; } catch { return ''; } }
   private readStoredUser(): SessionUser | null { try { return JSON.parse(localStorage.getItem('ros-tob-user') ?? 'null') as SessionUser | null; } catch { return null; } }
 
-  protected navigate(view: View) { this.view.set(view); this.mobileMenuOpen.set(false); this.notice.set(''); this.error.set(''); if (view === 'inventory') this.loadBooks(); if (view === 'history') this.loadSales(); if (view === 'users' && this.isAdmin()) this.loadUsers(); }
+  protected navigate(view: View) { this.view.set(view); this.mobileMenuOpen.set(false); this.notice.set(''); this.error.set(''); if (view === 'inventory') this.loadBooks(); if (view === 'sale') this.loadCustomers(); if (view === 'history') this.loadSales(); if (view === 'users' && this.isAdmin()) this.loadUsers(); }
   protected login() { this.error.set(''); this.http.post<{ token: string; user: SessionUser }>('/api/auth/login', this.loginForm).subscribe({ next: (result) => { localStorage.setItem('ros-tob-token', result.token); localStorage.setItem('ros-tob-role', result.user.role); localStorage.setItem('ros-tob-user', JSON.stringify(result.user)); this.currentUser.set(result.user); this.isAdmin.set(result.user.role === 'ADMIN'); this.authenticated.set(true); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo iniciar sesión.') }); }
   protected logout() { localStorage.removeItem('ros-tob-token'); localStorage.removeItem('ros-tob-role'); localStorage.removeItem('ros-tob-user'); this.currentUser.set(null); this.authenticated.set(false); this.isAdmin.set(false); this.loginForm.password = ''; }
   protected changeProfile(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file || !file.type.startsWith('image/')) return; const reader = new FileReader(); reader.onload = () => { const image = String(reader.result); localStorage.setItem('ros-tob-profile-image', image); this.profileImage.set(image); }; reader.readAsDataURL(file); }
@@ -88,6 +93,9 @@ export class App {
   protected previousSalesPage() { if (this.salesPage() > 1) this.loadSales(this.salesPage() - 1); }
   protected nextSalesPage() { if (this.salesHasNextPage()) this.loadSales(this.salesPage() + 1); }
   protected loadUsers() { this.http.get<ManagedUser[]>('/api/users').subscribe({ next: (data) => this.users.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudieron cargar los usuarios.') }); }
+  protected loadCustomers() { this.http.get<Customer[]>('/api/customers').subscribe({ next: (data) => this.customers.set(data), error: (err) => this.error.set(err.error?.message ?? 'No se pudieron cargar los clientes.') }); }
+  protected filteredCustomers() { const query = this.customerSearch.trim().toLowerCase(); return this.customers().filter((customer) => !query || [customer.name, customer.taxId, customer.email, customer.phone].some((value) => String(value ?? '').toLowerCase().includes(query))); }
+  protected selectCustomer(customer: Customer) { this.selectedCustomerId.set(customer.id); this.customer = { taxId: customer.taxId ?? '', name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '' }; this.showSaleCustomer.set(true); }
   protected toggleUser(user: ManagedUser) { this.http.patch<ManagedUser>(`/api/users/${user.id}/status`, { active: !user.active }).subscribe({ next: (updated) => { this.users.update((items) => items.map((item) => item.id === updated.id ? updated : item)); this.notice.set(`${updated.name} ${updated.active ? 'activado' : 'desactivado'}.`); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la cuenta.') }); }
   protected requestPasswordRecovery() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/forgot-password', { identifier: this.forgotIdentifier }).subscribe({ next: (result: any) => { this.recoveryCodeSent.set(true); this.notice.set(result.message); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo solicitar la recuperación.') }); }
   protected resetPassword() { this.error.set(''); this.notice.set(''); this.http.post('/api/auth/reset-password', { identifier: this.forgotIdentifier, code: this.recoveryCode, password: this.recoveryPassword }).subscribe({ next: (result: any) => { this.notice.set(result.message); this.forgotMode.set(false); this.recoveryCodeSent.set(false); this.recoveryCode = ''; this.recoveryPassword = ''; this.loginForm.identifier = this.forgotIdentifier; this.loginForm.password = ''; }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar la contraseña.') }); }
@@ -118,9 +126,9 @@ export class App {
   protected saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.error.set('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notice.set(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
   protected scanInventory() { const code = this.bookForm.barcode.replace(/[\r\n]/g, '').trim(); this.bookForm.barcode = code; if (code) { this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => this.notice.set(`${book.title} encontrado. Stock: ${book.stock}`), error: () => this.openNewBook(code) }); } }
   protected scanSale() { const code = this.barcode.replace(/[\r\n]/g, '').trim(); this.barcode = code; if (!code) return; this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.barcode = ''; this.notice.set(`${book.title} agregado a la venta.`); }, error: () => this.error.set('Código de barras no registrado.') }); }
-  protected changeQuantity(line: SaleLine, delta: number) { const lines = this.saleLines().map((item) => item === line ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item); this.saleLines.set(lines); }
+  protected changeQuantity(line: SaleLine, quantity: number) { const lines = this.saleLines().map((item) => item === line ? { ...item, quantity: Math.max(1, Number.isFinite(quantity) ? Math.floor(quantity) : 1) } : item); this.saleLines.set(lines); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0); }
   protected total() { return this.subtotal() + (this.shippingActive ? Number(this.shippingAmount) || 0 : 0); }
-  protected finalizeSale() { if (!this.saleLines().length) { this.error.set('Agrega al menos un libro a la venta.'); return; } const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: line.quantity, unitPrice: line.unitPrice })), customer: this.customer.name ? this.customer : undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed }; this.http.post<any>('/api/sales', payload).subscribe({ next: (sale) => { this.notice.set(`Venta #${String(sale.number).padStart(6, '0')} finalizada.`); this.saleLines.set([]); this.customer = { taxId: '', name: '', phone: '', email: '', address: '' }; this.shippingActive = false; this.shippingAmount = 0; this.navigate('dashboard'); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo finalizar la venta.') }); }
+  protected finalizeSale() { if (!this.saleLines().length) { this.error.set('Agrega al menos un libro a la venta.'); return; } const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: line.quantity, unitPrice: line.unitPrice })), customer: this.customer.name ? this.customer : undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed }; this.http.post<any>('/api/sales', payload).subscribe({ next: (sale) => { this.notice.set(`Venta #${String(sale.number).padStart(6, '0')} finalizada.`); this.saleLines.set([]); this.customer = { taxId: '', name: '', phone: '', email: '', address: '' }; this.selectedCustomerId.set(null); this.shippingActive = false; this.shippingAmount = 0; this.navigate('dashboard'); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo finalizar la venta.') }); }
 }
