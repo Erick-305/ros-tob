@@ -85,10 +85,13 @@ const getMailer = async () => {
   if (cachedMailer) return cachedMailer;
   // Resuelve por IPv4 a mano: Nodemailer elige al azar entre A/AAAA y Railway no tiene salida IPv6.
   const { address } = await dns.promises.lookup(smtpHost, { family: 4 });
+  const smtpPort = Number(process.env['SMTP_PORT'] ?? 587);
+  // El puerto 465 exige TLS implícito desde el saludo inicial; si no coincide con "secure" el handshake se cuelga.
+  const secure = smtpPort === 465 ? true : process.env['SMTP_SECURE'] === 'true';
   cachedMailer = nodemailer.createTransport({
     host: address,
-    port: Number(process.env['SMTP_PORT'] ?? 465),
-    secure: process.env['SMTP_SECURE'] === 'true',
+    port: smtpPort,
+    secure,
     auth: { user: process.env['SMTP_USER'], pass: process.env['SMTP_PASS'] },
     tls: { servername: smtpHost },
     connectionTimeout: 8000,
