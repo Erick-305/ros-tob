@@ -101,10 +101,26 @@ const getMailer = async () => {
   return cachedMailer;
 };
 const mailFrom = process.env['MAIL_FROM'] ?? process.env['SMTP_USER'];
+const parseFromHeader = (from: string) => {
+  const match = from.match(/^(.*)<(.+)>$/);
+  return match ? { name: match[1]!.trim().replace(/^"|"$/g, ''), email: match[2]!.trim() } : { email: from.trim() };
+};
+const sendViaBrevo = async (apiKey: string, email: string, subject: string, text: string) => {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'Content-Type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ sender: parseFromHeader(mailFrom ?? ''), to: [{ email }], subject, textContent: text }),
+  });
+  if (!response.ok) throw new Error(`Brevo respondió ${response.status}: ${await response.text()}`);
+};
 const sendCode = async (email: string, subject: string, code: string, action: string) => {
+  const text = `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 10 minutos.`;
+  const brevoKey = process.env['BREVO_API_KEY'];
+  // Railway bloquea las conexiones SMTP salientes; Brevo entrega por HTTPS, que sí funciona ahí.
+  if (brevoKey) { await sendViaBrevo(brevoKey, email, subject, text); return; }
   const mailer = await getMailer();
   if (!mailer || !mailFrom) throw new Error('El servicio de correo no está configurado.');
-  await mailer.sendMail({ from: mailFrom, to: email, subject, text: `ROS-TOB\n\nTu código para ${action} es: ${code}\n\nVence en 10 minutos.` });
+  await mailer.sendMail({ from: mailFrom, to: email, subject, text });
 };
 
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, service: 'ros-tob-api' }));
