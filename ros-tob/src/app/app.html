@@ -217,7 +217,8 @@
             <div class="customer-results">@for (savedCustomer of filteredCustomers(); track savedCustomer.id) { <button
                 type="button" class="customer-result" (click)="selectCustomer(savedCustomer)"><strong>{{
                   savedCustomer.name }}</strong><small>{{ savedCustomer.taxId || savedCustomer.email ||
-                  savedCustomer.phone || 'Sin datos adicionales' }}</small></button> } @empty { <span class="muted">No
+                  savedCustomer.phone || 'Sin datos adicionales' }}</small><span class="icon-button"
+                  (click)="deleteCustomer(savedCustomer, $event)">×</span></button> } @empty { <span class="muted">No
                 hay clientes coincidentes. Completa los datos para registrarlo.</span> }</div>
           </div>
           <div class="form-grid customer-form"><label>Cédula / RUC<input

@@ -216,6 +216,19 @@ app.get('/api/customers', asyncRoute(async (req, res) => {
   res.json(customers);
 }));
 
+app.delete('/api/customers/:id', asyncRoute(async (req, res) => {
+  const id = idSchema.parse(req.params['id']);
+  await db.transaction(async (tx) => {
+    const customer = await tx.orm.public.Customer.first({ id });
+    if (!customer) throw new Error('Cliente no encontrado.');
+    // Conserva el historial de ventas: solo desvincula al cliente antes de borrarlo.
+    const sales = await tx.orm.public.Sale.where({ customerId: id }).all();
+    for (const sale of sales) await tx.orm.public.Sale.where({ id: sale.id }).update({ customerId: null });
+    await tx.orm.public.Customer.where({ id }).delete();
+  });
+  res.json({ message: 'Cliente eliminado.' });
+}));
+
 app.get('/api/books', asyncRoute(async (req, res) => {
   const search = String(req.query['q'] ?? '').trim();
   const page = Math.max(1, Number(req.query['page'] ?? 1));
