@@ -74,6 +74,7 @@ const saleSchema = z.object({
 
 const asyncRoute = (handler: (req: Request, res: Response) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => handler(req, res).catch(next);
+class DomainError extends Error {}
 
 const money = (value: unknown) => Number(value ?? 0);
 const hashCode = (code: string) => crypto.createHash('sha256').update(code).digest('hex');
@@ -220,7 +221,7 @@ app.delete('/api/customers/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   await db.transaction(async (tx) => {
     const customer = await tx.orm.public.Customer.first({ id });
-    if (!customer) throw new Error('Cliente no encontrado.');
+    if (!customer) throw new DomainError('Cliente no encontrado.');
     // Conserva el historial de ventas: solo desvincula al cliente antes de borrarlo.
     const sales = await tx.orm.public.Sale.where({ customerId: id }).all();
     for (const sale of sales) await tx.orm.public.Sale.where({ id: sale.id }).update({ customerId: null });
@@ -309,7 +310,7 @@ app.post('/api/inventory/entries', asyncRoute(async (req, res) => {
   const result = await db.transaction(async (tx) => {
 
     const book = await tx.orm.public.Book.first({ id: data.bookId });
-    if (!book || !book.active) throw new Error('Libro no encontrado.');
+    if (!book || !book.active) throw new DomainError('Libro no encontrado.');
     const newStock = book.stock + data.quantity;
     const updated = await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock, ...(data.cost === undefined ? {} : { cost: String(data.cost) }) });
     await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'ENTRY', quantity: data.quantity, previousStock: book.stock, newStock, reason: data.reason });
@@ -334,8 +335,8 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
         const books = await Promise.all(data.items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
         books.forEach((book, index) => {
           const item = data.items[index]!;
-          if (!book || !book.active) throw new Error('Uno de los libros no existe.');
-          if (book.stock < item.quantity) throw new Error(`Stock insuficiente para ${book.title}.`);
+          if (!book || !book.active) throw new DomainError('Uno de los libros no existe.');
+          if (book.stock < item.quantity) throw new DomainError(`Stock insuficiente para ${book.title}.`);
         });
         let customer = null;
         if (data.customer?.name) {
@@ -415,7 +416,7 @@ app.delete('/api/sales/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   await db.transaction(async (tx) => {
     const sale = await tx.orm.public.Sale.first({ id });
-    if (!sale) throw new Error('Venta no encontrada.');
+    if (!sale) throw new DomainError('Venta no encontrada.');
     const items = await tx.orm.public.SaleItem.where({ saleId: id }).all();
     for (const item of items) {
       const book = await tx.orm.public.Book.first({ id: item.bookId });
@@ -431,6 +432,7 @@ app.delete('/api/sales/:id', asyncRoute(async (req, res) => {
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof z.ZodError) { res.status(400).json({ message: 'Datos inválidos.', errors: error.flatten() }); return; }
+  if (error instanceof DomainError) { res.status(400).json({ message: error.message }); return; }
   console.error('Unhandled API error', error);
   res.status(500).json({ message: 'Error interno del servidor.' });
 });
