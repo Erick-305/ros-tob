@@ -226,7 +226,8 @@
                 [(ngModel)]="customer.name"></label><label>Teléfono<input
                 [(ngModel)]="customer.phone"></label><label>Correo<input [(ngModel)]="customer.email"></label><label
               class="wide">Dirección<input [(ngModel)]="customer.address"></label><label>Ciudad<input
-                [(ngModel)]="customer.city"></label><label class="wide">Vendedor<input [(ngModel)]="customer.vendedor" [value]="currentUser()?.name ?? currentUser()?.username ?? ''" readonly></label></div>@if (selectedCustomerId()) { <button type="button"
+                [(ngModel)]="customer.city"></label><label class="wide">Vendedor<input
+                [(ngModel)]="customer.vendedor"></label></div>@if (selectedCustomerId()) { <button type="button"
               class="secondary-button save-customer-button" (click)="updateCustomer()">Guardar cambios del cliente</button> } }
         </div>
         <aside class="sale-summary panel">
