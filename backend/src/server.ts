@@ -421,11 +421,12 @@ app.get('/api/sales/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   const sale = await db.orm.public.Sale.first({ id });
   if (!sale) { res.status(404).json({ message: 'Venta no encontrada.' }); return; }
-  const [items, customer] = await Promise.all([
+  const [items, customer, user] = await Promise.all([
     db.orm.public.SaleItem.where({ saleId: id }).all(),
     sale.customerId ? db.orm.public.Customer.first({ id: sale.customerId }) : Promise.resolve(null),
+    db.orm.public.User.first({ id: sale.userId }),
   ]);
-  res.json({ ...sale, customer, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
+  res.json({ ...sale, customer, user, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
 }));
 
 app.delete('/api/sales/:id', asyncRoute(async (req, res) => {
