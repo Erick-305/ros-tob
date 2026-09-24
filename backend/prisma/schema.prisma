@@ -90,6 +90,7 @@ model Sale {
   status            String      @default("COMPLETED")
   subtotal          Numeric
   userId            Int
+  sellerName        String?
   saleItems         SaleItem[]
   customer          Customer?   @relation(fields: [customerId], references: [id], map: "sale_customerId_fkey")
   user              User        @relation(fields: [userId], references: [id], map: "sale_userId_fkey")

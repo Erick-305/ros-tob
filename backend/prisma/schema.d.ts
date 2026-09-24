@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d3171e77e0834299045eb27f4409d67ca662b50d7e52074f2bd8003f269a1498'>;
+  StorageHashBase<'86af166b2b8e472df654806e3435e92268a326a85ffe5033b21eeb5e8c3954d5'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -293,6 +293,7 @@ export type FieldOutputTypes = {
       readonly status: CodecTypes['pg/text@1']['output'];
       readonly subtotal: CodecTypes['pg/numeric@1']['output'];
       readonly userId: CodecTypes['pg/int4@1']['output'];
+      readonly sellerName: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly SaleItem: {
       readonly id: CodecTypes['pg/int4@1']['output'];
@@ -376,6 +377,7 @@ export type FieldInputTypes = {
       readonly status: CodecTypes['pg/text@1']['input'];
       readonly subtotal: CodecTypes['pg/numeric@1']['input'];
       readonly userId: CodecTypes['pg/int4@1']['input'];
+      readonly sellerName: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly SaleItem: {
       readonly id: CodecTypes['pg/int4@1']['input'];
@@ -451,6 +453,7 @@ export type StorageColumnTypes = {
       readonly receivedConfirmed: CodecTypes['pg/bool@1']['output'];
       readonly receivedId: CodecTypes['pg/text@1']['output'] | null;
       readonly receivedName: CodecTypes['pg/text@1']['output'] | null;
+      readonly sellerName: CodecTypes['pg/text@1']['output'] | null;
       readonly shippingActive: CodecTypes['pg/bool@1']['output'];
       readonly shippingAddress: CodecTypes['pg/text@1']['output'] | null;
       readonly shippingAmount: CodecTypes['pg/numeric@1']['output'];
@@ -534,6 +537,7 @@ export type StorageColumnInputTypes = {
       readonly receivedConfirmed: CodecTypes['pg/bool@1']['input'];
       readonly receivedId: CodecTypes['pg/text@1']['input'] | null;
       readonly receivedName: CodecTypes['pg/text@1']['input'] | null;
+      readonly sellerName: CodecTypes['pg/text@1']['input'] | null;
       readonly shippingActive: CodecTypes['pg/bool@1']['input'];
       readonly shippingAddress: CodecTypes['pg/text@1']['input'] | null;
       readonly shippingAmount: CodecTypes['pg/numeric@1']['input'];
@@ -652,6 +656,7 @@ export namespace Models {
     status: CodecTypes['pg/text@1']['output'];
     subtotal: CodecTypes['pg/numeric@1']['output'];
     userId: CodecTypes['pg/int4@1']['output'];
+    sellerName: CodecTypes['pg/text@1']['output'] | null;
     customer: public_Customer | null;
     saleItems: public_SaleItem[];
     user: public_User;
@@ -1046,6 +1051,11 @@ type ContractBase = Omit<
                   readonly nativeType: 'int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
+                };
+                readonly sellerName: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                 };
               };
               primaryKey: { readonly columns: readonly ['id']; readonly name: 'sale_pkey' };
@@ -1625,6 +1635,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly sellerName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
             };
             readonly relations: {
               readonly customer: {
@@ -1679,6 +1693,7 @@ type ContractBase = Omit<
                 readonly status: { readonly column: 'status' };
                 readonly subtotal: { readonly column: 'subtotal' };
                 readonly userId: { readonly column: 'userId' };
+                readonly sellerName: { readonly column: 'sellerName' };
               };
             };
           };

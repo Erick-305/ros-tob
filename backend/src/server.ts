@@ -56,6 +56,7 @@ const saleSchema = z.object({
     address: z.string().trim().max(250).optional(),
     city: z.string().trim().max(100).optional(),
   }).optional(),
+  sellerName: z.string().trim().max(160).optional(),
   userId: idSchema.default(1),
   items: z.array(z.object({
     bookId: idSchema,
@@ -380,6 +381,7 @@ app.post('/api/sales', asyncRoute(async (req, res) => {
           number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
           shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
           receivedConfirmed: data.receivedConfirmed, status: 'COMPLETED',
+          ...(data.sellerName === undefined ? {} : { sellerName: data.sellerName }),
           ...(data.shippingAddress === undefined ? {} : { shippingAddress: data.shippingAddress }),
           ...(data.shippingReference === undefined ? {} : { shippingReference: data.shippingReference }),
           ...(data.shippingNote === undefined ? {} : { shippingNote: data.shippingNote }),

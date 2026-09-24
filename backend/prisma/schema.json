@@ -497,6 +497,13 @@
                   "kind": "scalar"
                 }
               },
+              "sellerName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "shippingActive": {
                 "nullable": false,
                 "type": {
@@ -625,6 +632,9 @@
                 },
                 "receivedName": {
                   "column": "receivedName"
+                },
+                "sellerName": {
+                  "column": "sellerName"
                 },
                 "shippingActive": {
                   "column": "shippingActive"
@@ -1311,6 +1321,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "sellerName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "shippingActive": {
                   "codecId": "pg/bool@1",
                   "default": {
@@ -1668,7 +1683,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d3171e77e0834299045eb27f4409d67ca662b50d7e52074f2bd8003f269a1498"
+    "storageHash": "86af166b2b8e472df654806e3435e92268a326a85ffe5033b21eeb5e8c3954d5"
   },
   "capabilities": {
     "postgres": {
