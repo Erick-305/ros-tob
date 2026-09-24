@@ -226,7 +226,7 @@
                 [(ngModel)]="customer.name"></label><label>Teléfono<input
                 [(ngModel)]="customer.phone"></label><label>Correo<input [(ngModel)]="customer.email"></label><label
               class="wide">Dirección<input [(ngModel)]="customer.address"></label><label>Ciudad<input
-                [(ngModel)]="customer.city"></label></div>@if (selectedCustomerId()) { <button type="button"
+                [(ngModel)]="customer.city"></label><label class="wide">Vendedor<input [(ngModel)]="customer.vendedor" [value]="currentUser()?.name ?? currentUser()?.username ?? ''" readonly></label></div>@if (selectedCustomerId()) { <button type="button"
               class="secondary-button save-customer-button" (click)="updateCustomer()">Guardar cambios del cliente</button> } }
         </div>
         <aside class="sale-summary panel">
@@ -243,7 +243,7 @@
             class="confirm-row"><input type="checkbox" [(ngModel)]="receivedConfirmed"><span>Recibí
               conforme</span></label>@if (completedSale()) { <button type="button"
             class="primary-button full print-now-button" (click)="printSale(completedSale())">Imprimir PDF</button> }
-          @else { <button type="button" class="primary-button full" (click)="finalizeSale()">Finalizar venta →</button>
+          @else { <button type="button" class="primary-button full" [disabled]="submittingSale()" (click)="finalizeSale()">{{ submittingSale() ? 'Guardando...' : 'Finalizar venta →' }}</button>
           }<button type="button" class="secondary-button full" (click)="saleLines.set([])">Cancelar</button>
         </aside>
       </div>
