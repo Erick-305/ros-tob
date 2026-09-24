@@ -893,6 +893,10 @@ td small,
 	background: #e6f1e9;
 }
 
+.save-customer-button {
+	margin-top: 12px;
+}
+
 .modal-backdrop {
 	position: fixed;
 	inset: 0;

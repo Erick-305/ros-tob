@@ -217,6 +217,22 @@ app.get('/api/customers', asyncRoute(async (req, res) => {
   res.json(customers);
 }));
 
+app.patch('/api/customers/:id', asyncRoute(async (req, res) => {
+  const id = idSchema.parse(req.params['id']);
+  const data = z.object({
+    taxId: z.string().trim().max(40).optional(),
+    name: z.string().trim().min(1).max(160).optional(),
+    phone: z.string().trim().max(40).optional(),
+    email: z.string().trim().email().optional().or(z.literal('')),
+    address: z.string().trim().max(250).optional(),
+    city: z.string().trim().max(100).optional(),
+  }).parse(req.body);
+  const update = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+  const customer = await db.orm.public.Customer.where({ id }).update(update);
+  if (!customer) throw new DomainError('Cliente no encontrado.');
+  res.json(customer);
+}));
+
 app.delete('/api/customers/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   await db.transaction(async (tx) => {
