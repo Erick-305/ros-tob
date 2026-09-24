@@ -48,6 +48,7 @@ export class App {
   protected readonly notice = signal('');
   protected readonly error = signal('');
   protected readonly showBookForm = signal(false);
+  protected readonly bookFormError = signal('');
   protected readonly showEntryForm = signal(false);
   protected readonly editingBook = signal<Book | null>(null);
   protected readonly showSaleCustomer = signal(false);
@@ -125,10 +126,10 @@ export class App {
     });
   }
   protected searchBooks() { this.loadBooks(1); }
-  protected openNewBook(barcode = '') { this.bookForm = { barcode, title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 }; this.showBookForm.set(true); }
-  protected openEditBook(book: Book) { this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: book.stock, minStock: book.minStock }; this.editingBook.set(book); this.showBookForm.set(true); }
+  protected openNewBook(barcode = '') { this.bookFormError.set(''); this.bookForm = { barcode, title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 }; this.showBookForm.set(true); }
+  protected openEditBook(book: Book) { this.bookFormError.set(''); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: book.stock, minStock: book.minStock }; this.editingBook.set(book); this.showBookForm.set(true); }
   protected openEntry(book: Book) { this.editingBook.set(book); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: 0, minStock: book.minStock }; this.showEntryForm.set(true); }
-  protected saveBook() { this.http.post<Book>('/api/books', this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.notice.set('Libro registrado correctamente.'); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar el libro.') }); }
+  protected saveBook() { this.bookFormError.set(''); this.http.post<Book>('/api/books', this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.notice.set('Libro registrado correctamente.'); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.bookFormError.set(err.error?.message ?? 'No se pudo registrar el libro.') }); }
   protected updateBook() { const book = this.editingBook(); if (!book) return; this.http.patch<Book>(`/api/books/${book.id}`, this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.editingBook.set(null); this.notice.set('Libro actualizado correctamente.'); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo actualizar el libro.') }); }
   protected deleteBook(book: Book) { if (!window.confirm(`¿Eliminar "${book.title}" del inventario? El historial de ventas se conservará.`)) return; this.http.delete(`/api/books/${book.id}`).subscribe({ next: () => { this.notice.set(`${book.title} eliminado del inventario.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo eliminar el libro.') }); }
   protected saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.error.set('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notice.set(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar la entrada.') }); }

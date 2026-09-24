@@ -341,6 +341,7 @@
     </div>
     <div class="scan-box compact"><span>⌕</span><input [(ngModel)]="bookForm.barcode"
         placeholder="Código de barras"><button class="secondary-button" (click)="scanInventory()">Buscar</button></div>
+    @if (bookFormError()) { <div class="modal-form-error">! {{ bookFormError() }}</div> }
     <div class="form-grid"><label class="wide">Título<input [(ngModel)]="bookForm.title"></label><label>Autor<input
           [(ngModel)]="bookForm.author"></label><label>Categoría<input
           [(ngModel)]="bookForm.category"></label><label>Costo<input type="number" min="0" step="0.01"
