@@ -46,6 +46,8 @@ export class App {
   protected customerSearch = '';
   protected readonly selectedCustomerId = signal<number | null>(null);
   protected readonly saleLines = signal<SaleLine[]>([]);
+  protected readonly saleBookResults = signal<Book[]>([]);
+  protected saleSearch = '';
   protected readonly notice = signal('');
   protected readonly error = signal('');
   protected readonly showBookForm = signal(false);
@@ -141,7 +143,10 @@ export class App {
   protected deleteBook(book: Book) { if (!window.confirm(`¿Eliminar "${book.title}" del inventario? El historial de ventas se conservará.`)) return; this.http.delete(`/api/books/${book.id}`).subscribe({ next: () => { this.notice.set(`${book.title} eliminado del inventario.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo eliminar el libro.') }); }
   protected saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.error.set('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notice.set(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.loadDashboard(); }, error: (err) => this.error.set(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
   protected scanInventory() { const code = this.bookForm.barcode.replace(/[\r\n]/g, '').trim(); this.bookForm.barcode = code; if (code) { this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => this.notice.set(`${book.title} encontrado. Stock: ${book.stock}`), error: () => this.openNewBook(code) }); } }
-  protected scanSale() { const code = this.barcode.replace(/[\r\n]/g, '').trim(); this.barcode = code; if (!code) return; this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.barcode = ''; this.notice.set(`${book.title} agregado a la venta.`); }, error: () => this.error.set('Código de barras no registrado.') }); }
+  protected scanSale() { const code = this.barcode.replace(/[\r\n]/g, '').trim(); this.barcode = code; if (!code) return; this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => { this.addBookToSale(book); this.barcode = ''; }, error: () => this.error.set('Código de barras no registrado.') }); }
+  protected searchSaleBooks() { const q = this.saleSearch.trim(); if (!q) { this.saleBookResults.set([]); return; } this.http.get<{ items: Book[] }>('/api/books', { params: { q } }).subscribe({ next: (data) => this.saleBookResults.set(data.items), error: () => this.saleBookResults.set([]) }); }
+  protected selectSaleBook(book: Book) { this.addBookToSale(book); this.saleSearch = ''; this.saleBookResults.set([]); }
+  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.notice.set(`${book.title} agregado a la venta.`); }
   protected changeQuantity(line: SaleLine, quantity: number) { const lines = this.saleLines().map((item) => item === line ? { ...item, quantity: Math.max(1, Number.isFinite(quantity) ? Math.floor(quantity) : 1) } : item); this.saleLines.set(lines); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0); }

@@ -186,6 +186,12 @@
           <div class="scan-box"><span>⌕</span><input [(ngModel)]="barcode" (keyup.enter)="scanSale()" autofocus
               placeholder="Escanea o escribe un código..."><button class="primary-button"
               (click)="scanSale()">Agregar</button></div>
+          <div class="scan-box"><span>⌕</span><input [(ngModel)]="saleSearch" (keyup.enter)="searchSaleBooks()"
+              placeholder="Buscar por título, autor o categoría..."><button class="secondary-button"
+              (click)="searchSaleBooks()">Buscar</button></div>
+          @if (saleBookResults().length) { <div class="customer-results">@for (book of saleBookResults(); track
+              book.id) { <button type="button" class="customer-result" (click)="selectSaleBook(book)"><strong>{{
+                  book.title }}</strong><small>{{ book.author }} · Stock: {{ book.stock }}</small></button> } </div> }
           <div class="sale-table-wrap">
             <table class="sale-table">
               <thead>
