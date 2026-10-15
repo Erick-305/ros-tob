@@ -1,0 +1,35 @@
+    <section class="page">
+      <div class="page-actions">
+        <div>
+          <p class="eyebrow amber">ADMINISTRACIÓN</p>
+          <h2>Control de usuarios</h2>
+          <p class="muted">Activa o desactiva las cuentas autorizadas.</p>
+        </div><button class="secondary-button" (click)="loadUsers()">↻ Actualizar</button>
+      </div>
+      <section class="table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Usuario</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>@for (user of users(); track user.id) { <tr>
+              <td><strong>{{ user.name }}</strong></td>
+              <td class="mono">{{ user.username }}</td>
+              <td>{{ user.email || 'Sin correo' }}</td>
+              <td>{{ user.role === 'ADMIN' ? 'Administrador' : 'Usuario' }}</td>
+              <td><span class="stock-pill" [ngClass]="user.active ? 'good' : 'danger'">{{ user.active ? 'Activa' :
+                  'Desactivada' }}</span></td>
+              <td><button class="small-button" [disabled]="user.id === 1" (click)="toggleUser(user)">{{ user.active ?
+                  'Desactivar' : 'Activar' }}</button></td>
+            </tr> } @empty { <tr>
+              <td colspan="6" class="empty">No hay cuentas registradas.</td>
+            </tr> }</tbody>
+        </table>
+      </section>
+    </section>

@@ -1,0 +1,60 @@
+    <section class="page dashboard-page">
+      <input [(ngModel)]="bookForm.barcode" (keyup.enter)="scanInventory()" autocomplete="off" inputmode="numeric"
+        placeholder="Código de barras">
+      <div class="metric-grid">
+        <article class="metric"><span class="metric-icon green">▦</span>
+          <div><span>Libros registrados</span><strong>{{ dashboard()?.bookCount ?? '—' }}</strong><small>Catálogo
+              activo</small></div>
+        </article>
+        <article class="metric"><span class="metric-icon blue">◫</span>
+          <div><span>Unidades disponibles</span><strong>{{ dashboard()?.unitsAvailable ?? '—' }}</strong><small>En
+              inventario</small></div>
+        </article>
+        <article class="metric"><span class="metric-icon orange">↗</span>
+          <div><span>Ventas de hoy</span><strong>{{ dashboard()?.todaySales ?? '—' }}</strong><small>Notas
+              completadas</small></div>
+        </article>
+        <article class="metric"><span class="metric-icon violet">$</span>
+          <div><span>Total vendido hoy</span><strong>{{ dashboard()?.todayTotal | currency:'USD'
+              }}</strong><small>Incluye envíos</small></div>
+        </article>
+      </div>
+      <div class="content-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ATENCIÓN</p>
+              <h3>Stock que requiere acción</h3>
+            </div><button class="text-button" (click)="navigate('inventory')">Ver inventario →</button>
+          </div>
+          @if ((dashboard()?.lowStock?.length ?? 0) + (dashboard()?.outOfStock?.length ?? 0) > 0) {
+          <div class="alert-list">
+            @for (book of dashboard()?.outOfStock ?? []; track book.id) { <div class="alert-row"><span
+                class="book-cover">{{ book.title.charAt(0) }}</span>
+              <div><strong>{{ book.title }}</strong><small>{{ book.author }}</small></div><span
+                class="stock-pill danger">Sin stock</span>
+            </div> }
+            @for (book of dashboard()?.lowStock ?? []; track book.id) { <div class="alert-row"><span
+                class="book-cover">{{ book.title.charAt(0) }}</span>
+              <div><strong>{{ book.title }}</strong><small>{{ book.author }}</small></div><span
+                class="stock-pill warning">Stock bajo · {{ book.stock }}</span>
+            </div> }
+          </div>@if ((dashboard()?.lowStockTotal ?? 0) > (dashboard()?.lowStock?.length ?? 0) ||
+          (dashboard()?.outOfStockTotal ?? 0) > (dashboard()?.outOfStock?.length ?? 0)) { <p class="muted alert-more">
+            Hay más libros con alertas. Revisa el inventario completo.</p> }
+          } @else { <div class="empty">No hay alertas de stock. Buen trabajo.</div> }
+        </section>
+        <section class="panel dark-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ACTIVIDAD</p>
+              <h3>Ventas recientes</h3>
+            </div><button class="text-button light" (click)="navigate('history')">Ver todas →</button>
+          </div>
+          @for (sale of dashboard()?.recentSales ?? []; track sale.id) { <div class="sale-row">
+            <div><strong>Nota #{{ sale.number }}</strong><small>{{ sale.createdAt | date:'dd/MM/yyyy · HH:mm' }}</small>
+            </div><strong>{{ sale.total | currency:'USD' }}</strong>
+          </div> } @empty { <div class="empty dark-empty">Aún no hay ventas registradas.</div> }
+        </section>
+      </div>
+    </section>

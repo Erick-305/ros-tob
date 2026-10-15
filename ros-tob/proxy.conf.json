@@ -1,7 +1,7 @@
 {
   "/api": {
-    "target": "http://localhost:3000",
-    "secure": false,
+    "target": "https://ros-tob-backend.onrender.com",
+    "secure": true,
     "changeOrigin": true
   }
 }

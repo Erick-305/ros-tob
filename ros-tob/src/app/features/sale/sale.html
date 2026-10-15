@@ -1,0 +1,85 @@
+    <section class="page sale-page">
+      <div class="page-actions">
+        <div>
+          <p class="eyebrow amber">PUNTO DE VENTA</p>
+          <h2>Nueva nota de venta</h2>
+          <p class="muted">Escanea, revisa y finaliza en segundos.</p>
+        </div><span class="sale-number">N.º {{ saleLines().length ? 'BORRADOR' : 'NUEVA' }}</span>
+      </div>
+      <div class="sale-layout">
+        <div class="sale-main panel">
+          <div class="scan-head">
+            <div>
+              <p class="eyebrow">AGREGAR PRODUCTOS</p>
+              <h3>Escáner de código de barras</h3>
+            </div><span class="scan-key">ENTER</span>
+          </div>
+            <div class="scan-box"><span>⌕</span><input [(ngModel)]="barcode" (keyup.enter)="scanSale()" autofocus
+              placeholder="Escanea un código o busca por nombre..."><button class="primary-button"
+              (click)="scanSale()">Agregar</button></div>
+          @if (saleBookResults().length) { <div class="customer-results">@for (book of saleBookResults(); track
+              book.id) { <button type="button" class="customer-result" (click)="selectSaleBook(book)"><strong>{{
+                  book.title }}</strong><small>{{ book.author }} · Stock: {{ book.stock }}</small></button> } </div> }
+          <div class="sale-table-wrap">
+            <table class="sale-table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Precio aplicado</th>
+                  <th>Cantidad</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of saleLines(); track line.bookId) { <tr>
+                  <td><strong>{{ line.title }}</strong><small class="mono">{{ line.barcode }}</small></td>
+                  <td><input class="price-input" type="number" min="0" step="0.01" [(ngModel)]="line.unitPrice"></td>
+                  <td><input class="quantity-input" type="number" min="1" step="1" [ngModel]="line.quantity"
+                      (ngModelChange)="changeQuantity(line, $event)"></td>
+                  <td><strong>{{ line.quantity * line.unitPrice | currency:'USD' }}</strong></td>
+                  <td><button type="button" class="icon-button" (click)="removeLine(line)">×</button></td>
+                </tr> } @empty { <tr>
+                  <td colspan="5" class="empty">Escanea el primer libro para comenzar.</td>
+                </tr> }
+              </tbody>
+            </table>
+          </div><button class="text-button" (click)="showSaleCustomer.set(!showSaleCustomer())">{{ showSaleCustomer() ?
+            '− Ocultar datos del cliente' : '+ Agregar datos del cliente' }}</button>
+          @if (showSaleCustomer()) { <div class="customer-picker"><label>Buscar cliente guardado<input
+                [(ngModel)]="customerSearch" placeholder="Nombre, cédula, correo o teléfono"></label>
+            <div class="customer-results">@for (savedCustomer of filteredCustomers(); track savedCustomer.id) { <button
+                type="button" class="customer-result" (click)="selectCustomer(savedCustomer)"><strong>{{
+                  savedCustomer.name }}</strong><small>{{ savedCustomer.taxId || savedCustomer.email ||
+                  savedCustomer.phone || 'Sin datos adicionales' }}</small><span class="icon-button"
+                  (click)="deleteCustomer(savedCustomer, $event)">×</span></button> } @empty { <span class="muted">No
+                hay clientes coincidentes. Completa los datos para registrarlo.</span> }</div>
+          </div>
+          <div class="form-grid customer-form"><label>Cédula / RUC<input
+                [(ngModel)]="customer.taxId"></label><label>Nombre<input
+                [(ngModel)]="customer.name"></label><label>Teléfono<input
+                [(ngModel)]="customer.phone"></label><label>Correo<input [(ngModel)]="customer.email"></label><label
+              class="wide">Dirección<input [(ngModel)]="customer.address"></label><label>Ciudad<input
+                [(ngModel)]="customer.city"></label><label>Vendedor<input
+                [(ngModel)]="customer.vendedor"></label></div>@if (selectedCustomerId()) { <button type="button"
+              class="secondary-button save-customer-button" (click)="updateCustomer()">Guardar cambios del cliente</button> } }
+        </div>
+        <aside class="sale-summary panel">
+          <p class="eyebrow">RESUMEN</p>
+          <div class="summary-line"><span>Subtotal</span><strong>{{ subtotal() | currency:'USD' }}</strong></div><label
+            class="switch-row"><span><input type="checkbox" [(ngModel)]="shippingActive"> Activar envío</span><strong>{{
+              (shippingActive ? shippingAmount : 0) | currency:'USD' }}</strong></label>
+          @if (shippingActive) { <div class="shipping-fields"><label>Valor del envío<input type="number" min="0"
+                step="0.01" [(ngModel)]="shippingAmount"></label><label>Dirección<input
+                [(ngModel)]="shippingAddress"></label><label>Referencia<input
+                [(ngModel)]="shippingReference"></label><label>Observación<textarea
+                [(ngModel)]="shippingNote"></textarea></label></div> }
+          <div class="total-line"><span>Total</span><strong>{{ total() | currency:'USD' }}</strong></div><label
+            class="confirm-row"><input type="checkbox" [(ngModel)]="receivedConfirmed"><span>Recibí
+              conforme</span></label>@if (completedSale()) { <button type="button"
+            class="primary-button full print-now-button" (click)="printSale(completedSale())">Imprimir PDF</button> }
+          @else { <button type="button" class="primary-button full" [disabled]="submittingSale()" (click)="finalizeSale()">{{ submittingSale() ? 'Guardando...' : 'Finalizar venta →' }}</button>
+          }<button type="button" class="secondary-button full" (click)="saleLines.set([])">Cancelar</button>
+        </aside>
+      </div>
+    </section>
