@@ -1,7 +1,7 @@
 @if (authenticated()) {
 <div class="shell" [class.dark-mode]="darkMode()">
   <aside class="sidebar">
-    <div class="brand"><img src="images/ros-tob.jpeg" alt="ROS-TOB Publicaciones"></div>
+    <div class="brand"><img src="images/ros-tob-logo.png" alt="ROS-TOB Publicaciones"></div>
     <p class="eyebrow">LIBRERÍA / CONTROL</p>
     <button class="mobile-menu-button" (click)="toggleMobileMenu()" [attr.aria-expanded]="mobileMenuOpen()"><span>{{
         mobileMenuOpen() ? '×' : '☰' }}</span>{{ mobileMenuOpen() ? 'Cerrar menú' : 'Menú' }}</button>
@@ -88,7 +88,7 @@
 } @else {
 <main class="login-screen">
   <section class="login-card">
-    <div class="brand login-brand"><img src="images/ros-tob.jpeg" alt="ROS-TOB Publicaciones"></div>
+    <div class="brand login-brand"><img src="images/ros-tob-logo.png" alt="ROS-TOB Publicaciones"></div>
     <p class="eyebrow amber">CONTROL DE LIBRERÍA</p>
     <h1>Bienvenido de nuevo.</h1>
     <p class="muted">{{ forgotMode() ? 'Recupera tu acceso por correo.' : 'Ingresa con tu usuario o correo.' }}</p>@if
