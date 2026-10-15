@@ -120,7 +120,8 @@
 	height: 78px;
 	object-fit: contain;
 	border-radius: 5px;
-	mix-blend-mode: multiply;
+	user-select: none;
+	-webkit-user-drag: none;
 }
 
 .login-brand img {
