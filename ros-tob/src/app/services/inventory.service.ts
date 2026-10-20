@@ -44,7 +44,16 @@ export class InventoryService {
   openEntry(book: Book) { this.editingBook.set(book); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: 0, minStock: book.minStock }; this.showEntryForm.set(true); }
 
   saveBook() { this.bookFormError.set(''); this.http.post<Book>('/api/books', this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.notifications.setNotice('Libro registrado correctamente.'); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.bookFormError.set(err.error?.message ?? 'No se pudo registrar el libro.') }); }
-  updateBook() { const book = this.editingBook(); if (!book) return; this.http.patch<Book>(`/api/books/${book.id}`, this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.editingBook.set(null); this.notifications.setNotice('Libro actualizado correctamente.'); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo actualizar el libro.') }); }
+  updateBook() {
+    const book = this.editingBook();
+    if (!book) return;
+    const form = this.bookForm;
+    const changes = Object.fromEntries((Object.keys(form) as (keyof typeof form)[]).filter((key) => form[key] !== book[key]).map((key) => [key, form[key]]));
+    if (Object.keys(changes).length === 0) { this.showBookForm.set(false); this.editingBook.set(null); this.notifications.setNotice('No hay cambios que guardar.'); return; }
+    this.bookFormError.set('');
+    this.http.patch<Book>(`/api/books/${book.id}`, changes).subscribe({ next: () => { this.showBookForm.set(false); this.editingBook.set(null); this.notifications.setNotice('Libro actualizado correctamente.'); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.bookFormError.set(this.apiErrorMessage(err, 'No se pudo actualizar el libro.')) });
+  }
+  private apiErrorMessage(err: any, fallback: string) { const fields = Object.keys(err.error?.errors?.fieldErrors ?? {}); return (err.error?.message ?? fallback) + (fields.length ? ` Campos: ${fields.join(', ')}.` : ''); }
   deleteBook(book: Book) { if (!window.confirm(`¿Eliminar "${book.title}" del inventario? El historial de ventas se conservará.`)) return; this.http.delete(`/api/books/${book.id}`).subscribe({ next: () => { this.notifications.setNotice(`${book.title} eliminado del inventario.`); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo eliminar el libro.') }); }
   saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.notifications.setError('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notifications.setNotice(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
 
