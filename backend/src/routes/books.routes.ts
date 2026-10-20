@@ -48,6 +48,15 @@ booksRouter.post('/', asyncRoute(async (req, res) => {
 booksRouter.patch('/:id', asyncRoute(async (req, res) => {
   const id = idSchema.parse(req.params['id']);
   const data = bookSchema.partial().parse(req.body);
+  const current = await db.orm.public.Book.where({ id }).first();
+  if (!current || !current.active) { res.status(404).json({ message: 'Libro no encontrado.' }); return; }
+  if (data.barcode !== undefined && data.barcode !== current.barcode) {
+    const duplicate = await db.orm.public.Book.where({ barcode: data.barcode }).first();
+    if (duplicate) {
+      res.status(409).json({ message: duplicate.active ? 'Ya existe un libro activo con ese código de barras.' : 'Ese código de barras pertenece a un libro eliminado. Regístralo de nuevo para reactivarlo.' });
+      return;
+    }
+  }
   const update = Object.fromEntries(Object.entries({ ...data, ...(data.cost === undefined ? {} : { cost: String(data.cost) }), ...(data.salePrice === undefined ? {} : { salePrice: String(data.salePrice) }) }).filter(([, value]) => value !== undefined));
   const book = await db.orm.public.Book.where({ id }).update(update);
   res.json(publicBook(book));
