@@ -57,9 +57,9 @@
     @if (bookFormError()) { <div class="modal-form-error">! {{ bookFormError() }}</div> }
     <div class="form-grid"><label class="wide">Título<input [(ngModel)]="bookForm.title"></label><label>Autor<input
           [(ngModel)]="bookForm.author"></label><label>Categoría<input
-          [(ngModel)]="bookForm.category"></label><label>Costo<input type="number" min="0" step="0.01"
-          [(ngModel)]="bookForm.cost"></label><label>Precio de venta<input type="number" min="0" step="0.01"
-          [(ngModel)]="bookForm.salePrice"></label><label>Stock inicial<input type="number" min="0"
+          [(ngModel)]="bookForm.category"></label><label>Costo<input type="text" inputmode="decimal"
+          [ngModel]="bookForm.cost" (ngModelChange)="bookForm.cost = parseDecimal($event)"></label><label>Precio de venta<input type="text" inputmode="decimal"
+          [ngModel]="bookForm.salePrice" (ngModelChange)="bookForm.salePrice = parseDecimal($event)"></label><label>Stock inicial<input type="number" min="0"
           [(ngModel)]="bookForm.stock"></label><label>Stock mínimo<input type="number" min="0"
           [(ngModel)]="bookForm.minStock"></label></div>
     <div class="modal-actions"><button class="secondary-button"
@@ -78,8 +78,8 @@
       </div><button class="icon-button" (click)="showEntryForm.set(false)">×</button>
     </div>
     <div class="form-grid"><label>Cantidad recibida<input type="number" min="1"
-          [(ngModel)]="bookForm.stock"></label><label>Costo unitario<input type="number" min="0" step="0.01"
-          [(ngModel)]="bookForm.cost"></label></div>
+          [(ngModel)]="bookForm.stock"></label><label>Costo unitario<input type="text" inputmode="decimal"
+          [ngModel]="bookForm.cost" (ngModelChange)="bookForm.cost = parseDecimal($event)"></label></div>
     <div class="modal-actions"><button class="secondary-button"
         (click)="showEntryForm.set(false)">Cancelar</button><button class="primary-button"
         (click)="saveEntry()">Registrar entrada</button></div>

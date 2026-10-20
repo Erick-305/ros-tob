@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CustomersService } from '../../services/customers.service';
 import { DashboardService } from '../../services/dashboard.service';
+import { parseDecimal } from '../../services/decimal.util';
 import { InventoryService } from '../../services/inventory.service';
 import type { Book, Customer, SaleLine } from '../../services/models';
 import { NotificationService } from '../../services/notification.service';
@@ -36,6 +37,7 @@ export class Sale {
   protected shippingReference = '';
   protected shippingNote = '';
   protected receivedConfirmed = false;
+  protected readonly parseDecimal = parseDecimal;
 
   protected filteredCustomers() { const query = this.customerSearch.trim().toLowerCase(); return this.customers().filter((customer) => !query || [customer.name, customer.taxId, customer.email, customer.phone, customer.city].some((value) => String(value ?? '').toLowerCase().includes(query))); }
   protected selectCustomer(customer: Customer) { this.selectedCustomerId.set(customer.id); this.customer = { taxId: customer.taxId ?? '', name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '', city: customer.city ?? '', vendedor: this.customer.vendedor }; this.showSaleCustomer.set(true); }
@@ -62,6 +64,7 @@ export class Sale {
   protected selectSaleBook(book: Book) { this.addBookToSale(book); this.barcode = ''; this.saleBookResults.set([]); }
   private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
   protected changeQuantity(line: SaleLine, quantity: number) { const lines = this.saleLines().map((item) => item === line ? { ...item, quantity: Math.max(1, Number.isFinite(quantity) ? Math.floor(quantity) : 1) } : item); this.saleLines.set(lines); }
+  protected setUnitPrice(line: SaleLine, raw: string) { const lines = this.saleLines().map((item) => item === line ? { ...item, unitPrice: parseDecimal(raw) } : item); this.saleLines.set(lines); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0); }
   protected total() { return this.subtotal() + (this.shippingActive ? Number(this.shippingAmount) || 0 : 0); }

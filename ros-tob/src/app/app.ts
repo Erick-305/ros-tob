@@ -7,6 +7,7 @@ import { Sale } from './features/sale/sale';
 import { Users } from './features/users/users';
 import { AuthService } from './services/auth.service';
 import { DashboardService } from './services/dashboard.service';
+import { parseDecimal } from './services/decimal.util';
 import { InventoryService } from './services/inventory.service';
 import type { View } from './services/models';
 import { NavigationService } from './services/navigation.service';
@@ -36,6 +37,7 @@ export class App {
   protected readonly bookFormError = this.inventory.bookFormError;
   protected readonly showEntryForm = this.inventory.showEntryForm;
   protected readonly editingBook = this.inventory.editingBook;
+  protected readonly parseDecimal = parseDecimal;
 
   protected readonly forgotMode = signal(false);
   protected readonly recoveryCodeSent = signal(false);
