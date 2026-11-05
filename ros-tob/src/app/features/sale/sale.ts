@@ -64,7 +64,7 @@ export class Sale {
   protected selectSaleBook(book: Book) { this.addBookToSale(book); this.barcode = ''; this.saleBookResults.set([]); }
   private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: parseDecimal(book.salePrice) }); this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
   protected changeQuantity(line: SaleLine, quantity: number) { const parsedQuantity = Number(quantity); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, quantity: Math.max(1, Number.isFinite(parsedQuantity) ? Math.floor(parsedQuantity) : 1) } : item); this.saleLines.set(lines); }
-  protected setUnitPrice(line: SaleLine, raw: string) { const unitPrice = parseDecimal(raw); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
+  protected setUnitPrice(line: SaleLine, event: Event) { const unitPrice = parseDecimal((event.target as HTMLInputElement).value); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
   protected lineTotal(line: SaleLine) { return Number(line.quantity) * parseDecimal(line.unitPrice); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + this.lineTotal(line), 0); }
@@ -74,7 +74,7 @@ export class Sale {
     if (this.submittingSale()) return;
     if (!this.saleLines().length) { this.notifications.setError('Agrega al menos un libro a la venta.'); return; }
     this.submittingSale.set(true);
-    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: line.quantity, unitPrice: line.unitPrice })), customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
+    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: Number(line.quantity), unitPrice: parseDecimal(line.unitPrice) })), customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
     this.salesService.createSale(payload).subscribe({
       next: (sale) => {
         this.submittingSale.set(false);
