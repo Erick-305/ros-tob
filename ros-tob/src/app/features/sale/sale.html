@@ -38,7 +38,7 @@
                       (ngModelChange)="setUnitPrice(line, $event)"></td>
                   <td><input class="quantity-input" type="number" min="1" step="1" [ngModel]="line.quantity"
                       (ngModelChange)="changeQuantity(line, $event)"></td>
-                  <td><strong>{{ line.quantity * line.unitPrice | currency:'USD' }}</strong></td>
+                  <td><strong>{{ lineTotal(line) | currency:'USD' }}</strong></td>
                   <td><button type="button" class="icon-button" (click)="removeLine(line)">×</button></td>
                 </tr> } @empty { <tr>
                   <td colspan="5" class="empty">Escanea el primer libro para comenzar.</td>

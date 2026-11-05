@@ -62,11 +62,12 @@ export class Sale {
     });
   }
   protected selectSaleBook(book: Book) { this.addBookToSale(book); this.barcode = ''; this.saleBookResults.set([]); }
-  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: book.salePrice }); this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
-  protected changeQuantity(line: SaleLine, quantity: number) { const lines = this.saleLines().map((item) => item === line ? { ...item, quantity: Math.max(1, Number.isFinite(quantity) ? Math.floor(quantity) : 1) } : item); this.saleLines.set(lines); }
-  protected setUnitPrice(line: SaleLine, raw: string) { const lines = this.saleLines().map((item) => item === line ? { ...item, unitPrice: parseDecimal(raw) } : item); this.saleLines.set(lines); }
+  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: parseDecimal(book.salePrice) }); this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
+  protected changeQuantity(line: SaleLine, quantity: number) { const parsedQuantity = Number(quantity); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, quantity: Math.max(1, Number.isFinite(parsedQuantity) ? Math.floor(parsedQuantity) : 1) } : item); this.saleLines.set(lines); }
+  protected setUnitPrice(line: SaleLine, raw: string) { const unitPrice = parseDecimal(raw); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
+  protected lineTotal(line: SaleLine) { return Number(line.quantity) * parseDecimal(line.unitPrice); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
-  protected subtotal() { return this.saleLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0); }
+  protected subtotal() { return this.saleLines().reduce((sum, line) => sum + this.lineTotal(line), 0); }
   protected total() { return this.subtotal() + (this.shippingActive ? Number(this.shippingAmount) || 0 : 0); }
 
   protected finalizeSale() {
