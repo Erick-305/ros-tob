@@ -34,7 +34,7 @@
               <tbody>
                 @for (line of saleLines(); track line.bookId) { <tr>
                   <td><strong>{{ line.title }}</strong><small class="mono">{{ line.barcode }}</small></td>
-                    <td><input class="price-input" type="text" inputmode="decimal" [value]="line.unitPrice"
+                    <td><input class="price-input" type="text" inputmode="decimal" [value]="priceText(line)"
                       (input)="setUnitPrice(line, $event)"></td>
                   <td><input class="quantity-input" type="number" min="1" step="1" [ngModel]="line.quantity"
                       (ngModelChange)="changeQuantity(line, $event)"></td>

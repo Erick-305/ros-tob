@@ -25,6 +25,7 @@ export class Sale {
   protected customerSearch = '';
   protected readonly selectedCustomerId = signal<number | null>(null);
   protected readonly saleLines = signal<SaleLine[]>([]);
+  protected readonly priceDrafts = signal<Record<number, string | undefined>>({});
   protected readonly saleBookResults = signal<Book[]>([]);
   protected readonly submittingSale = signal(false);
   protected readonly completedSale = signal<any | null>(null);
@@ -62,9 +63,10 @@ export class Sale {
     });
   }
   protected selectSaleBook(book: Book) { this.addBookToSale(book); this.barcode = ''; this.saleBookResults.set([]); }
-  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: parseDecimal(book.salePrice) }); this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
+  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else { lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: parseDecimal(book.salePrice) }); this.priceDrafts.set({ ...this.priceDrafts(), [book.id]: undefined }); } this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
   protected changeQuantity(line: SaleLine, quantity: number) { const parsedQuantity = Number(quantity); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, quantity: Math.max(1, Number.isFinite(parsedQuantity) ? Math.floor(parsedQuantity) : 1) } : item); this.saleLines.set(lines); }
-  protected setUnitPrice(line: SaleLine, event: Event) { const unitPrice = parseDecimal((event.target as HTMLInputElement).value); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
+  protected priceText(line: SaleLine) { return this.priceDrafts()[line.bookId] ?? String(line.unitPrice); }
+  protected setUnitPrice(line: SaleLine, event: Event) { const raw = (event.target as HTMLInputElement).value; this.priceDrafts.set({ ...this.priceDrafts(), [line.bookId]: raw }); const unitPrice = parseDecimal(raw); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
   protected lineTotal(line: SaleLine) { return Number(line.quantity) * parseDecimal(line.unitPrice); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
   protected subtotal() { return this.saleLines().reduce((sum, line) => sum + this.lineTotal(line), 0); }
