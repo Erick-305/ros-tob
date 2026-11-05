@@ -12,6 +12,7 @@ import { InventoryService } from './services/inventory.service';
 import type { View } from './services/models';
 import { NavigationService } from './services/navigation.service';
 import { NotificationService } from './services/notification.service';
+import { UpdateService } from './services/update.service';
 
 @Component({
   imports: [FormsModule, Dashboard, Inventory, Sale, History, Users],
@@ -24,6 +25,7 @@ export class App {
   private readonly notifications = inject(NotificationService);
   private readonly dashboardService = inject(DashboardService);
   private readonly inventory = inject(InventoryService);
+  private readonly updateService = inject(UpdateService);
 
   protected readonly todayLabel = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()).toUpperCase();
   protected readonly authenticated = this.auth.authenticated;
@@ -38,6 +40,8 @@ export class App {
   protected readonly showEntryForm = this.inventory.showEntryForm;
   protected readonly editingBook = this.inventory.editingBook;
   protected readonly parseDecimal = parseDecimal;
+  protected readonly updateAvailable = this.updateService.updateAvailable;
+  protected reloadForUpdate() { this.updateService.reload(); }
 
   protected readonly forgotMode = signal(false);
   protected readonly recoveryCodeSent = signal(false);

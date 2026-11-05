@@ -572,6 +572,15 @@ td small,
 	color: #a44c42;
 }
 
+.notice.update {
+	background: #fff1d6;
+	color: #8a5a00;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
 .toolbar {
 	display: flex;
 	gap: 12px;

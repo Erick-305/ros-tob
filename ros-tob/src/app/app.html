@@ -33,6 +33,7 @@
             }}</span> }</label><span class="user-name">{{ currentUser()?.name ?? currentUser()?.username ?? 'Usuario'
           }}</span><button class="logout-button" (click)="logout()">Salir</button></div>
     </header>
+    @if (updateAvailable()) { <div class="notice update"><span>↻ Hay una nueva versión disponible.</span><button type="button" class="small-button" (click)="reloadForUpdate()">Actualizar ahora</button></div> }
     @if (notice()) { <div class="notice success">✓ {{ notice() }}</div> }
     @if (error()) { <div class="notice error">! {{ error() }}</div> }
 
