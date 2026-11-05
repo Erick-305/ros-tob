@@ -23,7 +23,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 
-app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, service: 'ros-tob-api' }));
+app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, service: 'ros-tob-api', commit: process.env.RAILWAY_GIT_COMMIT_SHA ?? null }));
 
 // Rutas públicas de autenticación, antes del guard de sesión.
 app.use('/api/auth', authRouter);
