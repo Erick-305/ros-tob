@@ -15,7 +15,7 @@ export const saleSchema = z.object({
   items: z.array(z.object({
     bookId: idSchema,
     quantity: z.coerce.number().int().positive(),
-    unitPrice: z.coerce.number().finite().positive(),
+    unitPrice: moneySchema,
   })).min(1),
   shippingActive: z.boolean().default(false),
   shippingAmount: moneySchema.default(0),
