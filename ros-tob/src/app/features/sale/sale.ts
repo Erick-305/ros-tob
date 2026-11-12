@@ -3,7 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CustomersService } from '../../services/customers.service';
 import { DashboardService } from '../../services/dashboard.service';
-import { parseDecimal } from '../../services/decimal.util';
+import { parseDecimal, roundMoney } from '../../services/decimal.util';
 import { InventoryService } from '../../services/inventory.service';
 import type { Book, Customer, SaleLine } from '../../services/models';
 import { NotificationService } from '../../services/notification.service';
@@ -34,6 +34,7 @@ export class Sale {
   protected customer = { taxId: '', name: '', phone: '', email: '', address: '', city: '', vendedor: '' };
   protected shippingActive = false;
   protected shippingAmount = 0;
+  protected readonly shippingAmountDraft = signal<string | null>(null);
   protected shippingAddress = '';
   protected shippingReference = '';
   protected shippingNote = '';
@@ -63,20 +64,37 @@ export class Sale {
     });
   }
   protected selectSaleBook(book: Book) { this.addBookToSale(book); this.barcode = ''; this.saleBookResults.set([]); }
-  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else { lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: parseDecimal(book.salePrice) }); this.priceDrafts.set({ ...this.priceDrafts(), [book.id]: undefined }); } this.saleLines.set(lines); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
+  private addBookToSale(book: Book) { const lines = [...this.saleLines()]; const existing = lines.find((line) => line.bookId === book.id); if (existing) existing.quantity += 1; else { lines.push({ bookId: book.id, barcode: book.barcode, title: book.title, quantity: 1, unitPrice: roundMoney(parseDecimal(book.salePrice)) }); this.priceDrafts.set({ ...this.priceDrafts(), [book.id]: undefined }); } this.saleLines.set(lines); this.completedSale.set(null); this.notifications.setNotice(`${book.title} agregado a la venta.`); }
   protected changeQuantity(line: SaleLine, quantity: number) { const parsedQuantity = Number(quantity); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, quantity: Math.max(1, Number.isFinite(parsedQuantity) ? Math.floor(parsedQuantity) : 1) } : item); this.saleLines.set(lines); }
   protected priceText(line: SaleLine) { return this.priceDrafts()[line.bookId] ?? String(line.unitPrice); }
-  protected setUnitPrice(line: SaleLine, event: Event) { const raw = (event.target as HTMLInputElement).value; this.priceDrafts.set({ ...this.priceDrafts(), [line.bookId]: raw }); const unitPrice = parseDecimal(raw); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
-  protected lineTotal(line: SaleLine) { return Number(line.quantity) * parseDecimal(line.unitPrice); }
+  protected setUnitPrice(line: SaleLine, event: Event) { const raw = (event.target as HTMLInputElement).value; this.priceDrafts.set({ ...this.priceDrafts(), [line.bookId]: raw }); const unitPrice = roundMoney(parseDecimal(raw)); const lines = this.saleLines().map((item) => item.bookId === line.bookId ? { ...item, unitPrice } : item); this.saleLines.set(lines); }
+  protected lineTotal(line: SaleLine) { return roundMoney(Number(line.quantity) * line.unitPrice); }
   protected removeLine(line: SaleLine) { this.saleLines.set(this.saleLines().filter((item) => item !== line)); }
-  protected subtotal() { return this.saleLines().reduce((sum, line) => sum + this.lineTotal(line), 0); }
-  protected total() { return this.subtotal() + (this.shippingActive ? Number(this.shippingAmount) || 0 : 0); }
+  protected subtotal() { return roundMoney(this.saleLines().reduce((sum, line) => sum + this.lineTotal(line), 0)); }
+  protected total() { return roundMoney(this.subtotal() + (this.shippingActive ? this.shippingAmount : 0)); }
+  protected shippingAmountText() { return this.shippingAmountDraft() ?? String(this.shippingAmount); }
+  protected setShippingAmount(event: Event) { const raw = (event.target as HTMLInputElement).value; this.shippingAmountDraft.set(raw); this.shippingAmount = roundMoney(parseDecimal(raw)); }
+  protected cancelSale() {
+    this.saleLines.set([]);
+    this.priceDrafts.set({});
+    this.completedSale.set(null);
+    this.customer = { taxId: '', name: '', phone: '', email: '', address: '', city: '', vendedor: '' };
+    this.selectedCustomerId.set(null);
+    this.shippingActive = false;
+    this.shippingAmount = 0;
+    this.shippingAmountDraft.set(null);
+    this.shippingAddress = '';
+    this.shippingReference = '';
+    this.shippingNote = '';
+    this.receivedConfirmed = false;
+    this.notifications.clear();
+  }
 
   protected finalizeSale() {
     if (this.submittingSale()) return;
     if (!this.saleLines().length) { this.notifications.setError('Agrega al menos un libro a la venta.'); return; }
     this.submittingSale.set(true);
-    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: Number(line.quantity), unitPrice: parseDecimal(line.unitPrice) })), customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: Number(this.shippingAmount) || 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
+    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: Number(line.quantity), unitPrice: roundMoney(parseDecimal(line.unitPrice)) })), customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: this.shippingActive ? this.shippingAmount : 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
     this.salesService.createSale(payload).subscribe({
       next: (sale) => {
         this.submittingSale.set(false);
@@ -87,6 +105,11 @@ export class Sale {
         this.selectedCustomerId.set(null);
         this.shippingActive = false;
         this.shippingAmount = 0;
+        this.shippingAmountDraft.set(null);
+        this.shippingAddress = '';
+        this.shippingReference = '';
+        this.shippingNote = '';
+        this.receivedConfirmed = false;
         this.dashboardService.load();
       },
       error: (err) => { this.submittingSale.set(false); this.notifications.setError(err.error?.message ?? 'No se pudo finalizar la venta.'); },

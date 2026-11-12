@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../prisma/db.js';
-import { money } from '../lib/helpers.js';
+import { money, roundMoney } from '../lib/helpers.js';
 import { type AuthedRequest } from '../middleware/auth.js';
 import { DomainError, asyncRoute } from '../middleware/async-route.js';
 import { idSchema } from '../schemas/common.schema.js';
@@ -11,14 +11,15 @@ export const salesRouter = Router();
 salesRouter.post('/', asyncRoute(async (req, res) => {
   const data = saleSchema.parse(req.body);
   const actorUserId = (req as AuthedRequest).user!.id;
-  const shippingAmount = data.shippingActive ? data.shippingAmount : 0;
+  const items = data.items.map((item) => ({ ...item, unitPrice: roundMoney(item.unitPrice) }));
+  const shippingAmount = data.shippingActive ? roundMoney(data.shippingAmount) : 0;
   let result;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       result = await db.transaction(async (tx) => {
-        const books = await Promise.all(data.items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
+        const books = await Promise.all(items.map((item) => tx.orm.public.Book.first({ id: item.bookId })));
         books.forEach((book, index) => {
-          const item = data.items[index]!;
+          const item = items[index]!;
           if (!book || !book.active) throw new DomainError('Uno de los libros no existe.');
           if (book.stock < item.quantity) throw new DomainError(`Stock insuficiente para ${book.title}.`);
         });
@@ -43,7 +44,7 @@ salesRouter.post('/', asyncRoute(async (req, res) => {
         }
         const sales = await tx.orm.public.Sale.all();
         const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
-        const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+        const subtotal = roundMoney(items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0));
         const sale = await tx.orm.public.Sale.create({
           number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
           shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
@@ -55,12 +56,12 @@ salesRouter.post('/', asyncRoute(async (req, res) => {
           ...(data.receivedName === undefined ? {} : { receivedName: data.receivedName }),
           ...(data.receivedId === undefined ? {} : { receivedId: data.receivedId }),
         });
-        for (let index = 0; index < data.items.length; index += 1) {
-          const item = data.items[index]!;
+        for (let index = 0; index < items.length; index += 1) {
+          const item = items[index]!;
           const book = books[index]!;
           const newStock = book.stock - item.quantity;
           const unitPrice = item.unitPrice;
-          await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(unitPrice), total: String(item.quantity * unitPrice) });
+          await tx.orm.public.SaleItem.create({ saleId: sale.id, bookId: book.id, barcode: book.barcode, description: book.title, quantity: item.quantity, unitPrice: String(unitPrice), total: String(roundMoney(item.quantity * unitPrice)) });
           await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock });
           await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'SALE', quantity: item.quantity, previousStock: book.stock, newStock, reason: `Venta #${number}` });
         }

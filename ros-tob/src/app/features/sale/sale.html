@@ -71,8 +71,8 @@
             class="switch-row"><span><input type="checkbox" [(ngModel)]="shippingActive"> Activar envío</span><strong>{{
               (shippingActive ? shippingAmount : 0) | currency:'USD' }}</strong></label>
           @if (shippingActive) { <div class="shipping-fields"><label>Valor del envío<input type="text"
-                inputmode="decimal" [ngModel]="shippingAmount"
-                (ngModelChange)="shippingAmount = parseDecimal($event)"></label><label>Dirección<input
+                inputmode="decimal" [value]="shippingAmountText()"
+                (input)="setShippingAmount($event)"></label><label>Dirección<input
                 [(ngModel)]="shippingAddress"></label><label>Referencia<input
                 [(ngModel)]="shippingReference"></label><label>Observación<textarea
                 [(ngModel)]="shippingNote"></textarea></label></div> }
@@ -81,7 +81,7 @@
               conforme</span></label>@if (completedSale()) { <button type="button"
             class="primary-button full print-now-button" (click)="printSale(completedSale())">Imprimir PDF</button> }
           @else { <button type="button" class="primary-button full" [disabled]="submittingSale()" (click)="finalizeSale()">{{ submittingSale() ? 'Guardando...' : 'Finalizar venta →' }}</button>
-          }<button type="button" class="secondary-button full" (click)="saleLines.set([])">Cancelar</button>
+          }<button type="button" class="secondary-button full" (click)="cancelSale()">Cancelar</button>
         </aside>
       </div>
     </section>
