@@ -12,14 +12,24 @@
     <div class="panel-head"><div><p class="eyebrow amber">NUEVA DEVOLUCIÓN</p><h3>Registrar devolución</h3></div></div>
     <form (ngSubmit)="save()">
       <div class="form-grid return-fields">
+        <label>Buscar venta por nombre, cédula o número<input name="saleSearch" [ngModel]="saleSearch" (ngModelChange)="searchSales($event)" placeholder="Nombre, cédula/RUC o # de nota"></label>
         <label>Venta original
-          <select name="saleId" [(ngModel)]="form.saleId" (ngModelChange)="form.items = [{ saleItemId: 0, quantity: 1 }]" required>
+          <select name="saleId" [ngModel]="form.saleId" (ngModelChange)="changeSale($event)" required>
             <option [ngValue]="0">Selecciona una venta</option>
-            @for (sale of sales(); track sale.id) { <option [ngValue]="sale.id">Venta #{{ sale.number }} — {{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</option> }
+            @for (sale of filteredSales(); track sale.id) {
+              <option [ngValue]="sale.id">Venta #{{ sale.number }} — {{ sale.customerName || 'Consumidor final' }}{{ sale.customerTaxId ? ' · ' + sale.customerTaxId : '' }} — {{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</option>
+            }
           </select>
         </label>
         <label class="wide">Motivo de devolución<input name="reason" [(ngModel)]="form.reason" maxlength="300" required placeholder="Describe brevemente el motivo"></label>
       </div>
+      @if (selectedSale(); as sale) {
+        <div class="return-customer-summary">
+          <div><small>CLIENTE</small><strong>{{ sale.customerName || 'Consumidor final' }}</strong></div>
+          <div><small>CÉDULA / RUC</small><strong>{{ sale.customerTaxId || 'No registrado' }}</strong></div>
+          <div><small>NOTA</small><strong>#{{ sale.number }}</strong></div>
+        </div>
+      }
       <div class="return-lines">
         @for (line of form.items; track $index; let index = $index) {
           <div class="return-line">
@@ -45,21 +55,23 @@
     </form>
   </section>
 
-  <section class="table-panel supplier-table-panel">
+  <section class="table-panel return-history-panel">
     <div class="panel-head"><div><p class="eyebrow amber">REGISTRO</p><h3>Historial de devoluciones</h3></div></div>
     <table>
-      <thead><tr><th>Fecha</th><th>Venta</th><th>Libros</th><th>Unidades</th><th>Motivo</th><th>Reembolso</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Venta</th><th>Cliente</th><th>Cédula / RUC</th><th>Libros</th><th>Unidades</th><th>Motivo</th><th>Reembolso</th></tr></thead>
       <tbody>
         @for (entry of returns(); track entry.id) {
           <tr>
             <td>{{ entry.createdAt | date:'dd/MM/yy HH:mm' }}</td>
             <td>{{ entry.saleNumber === null ? '—' : '#' + entry.saleNumber }}</td>
+            <td>{{ entry.customerName || 'Consumidor final' }}</td>
+            <td>{{ entry.customerTaxId || '—' }}</td>
             <td>{{ entry.descriptions.join(', ') }}</td>
             <td>{{ entry.itemCount }}</td>
             <td>{{ entry.reason }}</td>
             <td><strong>{{ entry.refundAmount | currency:'USD' }}</strong></td>
           </tr>
-        } @empty { <tr><td colspan="6" class="empty">No hay devoluciones registradas.</td></tr> }
+        } @empty { <tr><td colspan="8" class="empty">No hay devoluciones registradas.</td></tr> }
       </tbody>
     </table>
   </section>

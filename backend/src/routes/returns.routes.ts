@@ -23,10 +23,12 @@ const returnSchema = z.object({
 
 returnsRouter.get('/sales', asyncRoute(async (_req, res) => {
   const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(100).all();
-  const [saleItems, returnItems] = await Promise.all([
+  const [saleItems, returnItems, customers] = await Promise.all([
     db.orm.public.SaleItem.all(),
     db.orm.public.SalesReturnItem.all(),
+    db.orm.public.Customer.all(),
   ]);
+  const customersById = new Map(customers.map((customer) => [customer.id, customer]));
   const returnedQuantities = new Map<number, number>();
   for (const item of returnItems) returnedQuantities.set(item.saleItemId, (returnedQuantities.get(item.saleItemId) ?? 0) + item.quantity);
   const items = saleItems.filter((item) => sales.some((sale) => sale.id === item.saleId)).map((item) => ({
@@ -42,6 +44,8 @@ returnsRouter.get('/sales', asyncRoute(async (_req, res) => {
     id: sale.id,
     number: sale.number,
     createdAt: sale.createdAt,
+    customerName: customersById.get(sale.customerId ?? -1)?.name ?? sale.customerName ?? null,
+    customerTaxId: customersById.get(sale.customerId ?? -1)?.taxId ?? sale.customerTaxId ?? null,
     items: items.filter((item) => item.saleId === sale.id && item.returnedQuantity < item.quantity),
   })).filter((sale) => sale.items.length > 0));
 }));
@@ -52,13 +56,19 @@ returnsRouter.get('/', asyncRoute(async (_req, res) => {
     db.orm.public.Sale.all(),
     db.orm.public.SalesReturnItem.all(),
   ]);
-  const saleNumbers = new Map(sales.map((sale) => [sale.id, sale.number]));
+  const customers = await db.orm.public.Customer.all();
+  const customersById = new Map(customers.map((customer) => [customer.id, customer]));
+  const salesById = new Map(sales.map((sale) => [sale.id, sale]));
   const result = await Promise.all(returns.map(async (entry) => {
     const items = returnItems.filter((item) => item.returnId === entry.id);
+    const sale = salesById.get(entry.saleId);
+    const customer = sale?.customerId ? customersById.get(sale.customerId) : null;
     return {
       ...entry,
       refundAmount: money(entry.refundAmount),
-      saleNumber: saleNumbers.get(entry.saleId) ?? null,
+      saleNumber: sale?.number ?? null,
+      customerName: customer?.name ?? sale?.customerName ?? null,
+      customerTaxId: customer?.taxId ?? sale?.customerTaxId ?? null,
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
       descriptions: [...new Set(items.map((item) => item.bookId))],
     };

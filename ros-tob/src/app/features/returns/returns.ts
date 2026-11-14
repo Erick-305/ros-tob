@@ -20,8 +20,25 @@ export class Returns {
     reason: '',
     items: [{ saleItemId: 0, quantity: 1 }],
   };
+  protected saleSearch = '';
 
   protected selectedSale(): ReturnableSale | undefined { return this.sales().find((sale) => sale.id === Number(this.form.saleId)); }
+  protected filteredSales() {
+    const query = this.saleSearch.trim().toLocaleLowerCase();
+    return this.sales().filter((sale) => !query || [
+      String(sale.number),
+      sale.customerName ?? '',
+      sale.customerTaxId ?? '',
+    ].some((value) => value.toLocaleLowerCase().includes(query)));
+  }
+  protected searchSales(query: string) {
+    this.saleSearch = query;
+    if (this.form.saleId) this.changeSale(0);
+  }
+  protected changeSale(saleId: number) {
+    this.form.saleId = Number(saleId);
+    this.form.items = [{ saleItemId: 0, quantity: 1 }];
+  }
 
   protected availableQuantity(saleItemId: number, excludeIndex = -1) {
     const item = this.selectedSale()?.items.find((saleItem) => saleItem.id === Number(saleItemId));

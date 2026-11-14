@@ -870,6 +870,26 @@ td small,
 	margin-bottom: 18px;
 }
 
+.supplier-table-panel,
+.return-history-panel {
+	padding: 18px;
+}
+
+.supplier-table-panel .panel-head,
+.return-history-panel .panel-head {
+	margin: 0 4px 12px;
+}
+
+.return-history-panel table {
+	min-width: 1000px;
+}
+
+.return-history-panel td:nth-child(5),
+.return-history-panel td:nth-child(7) {
+	min-width: 140px;
+	white-space: normal;
+}
+
 .supplier-form {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -935,6 +955,32 @@ td small,
 .return-fields select,
 .return-line select {
 	width: 100%;
+}
+
+.return-customer-summary {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-top: 14px;
+	padding: 14px 16px;
+	border: 1px solid #e3eae4;
+	border-radius: 8px;
+	background: #f7faf7;
+}
+
+.return-customer-summary small {
+	color: #819187;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: .08em;
+}
+
+.return-customer-summary strong {
+	display: block;
+	margin-top: 5px;
+	color: #263b30;
+	font-size: 14px;
+	overflow-wrap: anywhere;
 }
 
 .return-lines {
@@ -1145,6 +1191,19 @@ td small,
 .dark-mode .table-panel td,
 .dark-mode .sale-table td {
 	border-color: #3c574a;
+}
+
+.dark-mode .return-customer-summary {
+	background: #1b2b25;
+	border-color: #3c574a;
+}
+
+.dark-mode .return-customer-summary small {
+	color: #b4c5bc;
+}
+
+.dark-mode .return-customer-summary strong {
+	color: #edf5ef;
 }
 
 .dark-mode .shipping-fields label,
@@ -1410,6 +1469,10 @@ td small,
 
 	.supplier-form,
 	.purchase-fields {
+		grid-template-columns: 1fr;
+	}
+
+	.return-customer-summary {
 		grid-template-columns: 1fr;
 	}
 

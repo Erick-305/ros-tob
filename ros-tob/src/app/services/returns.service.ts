@@ -17,6 +17,8 @@ export interface ReturnableSale {
   id: number;
   number: number;
   createdAt: string;
+  customerName: string | null;
+  customerTaxId: string | null;
   items: ReturnableSaleItem[];
 }
 
@@ -26,6 +28,8 @@ export interface ReturnRecord {
   reason: string;
   refundAmount: number;
   saleNumber: number | null;
+  customerName: string | null;
+  customerTaxId: string | null;
   itemCount: number;
   descriptions: string[];
 }
