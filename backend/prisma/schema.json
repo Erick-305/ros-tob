@@ -36,6 +36,14 @@
       "model": "Supplier",
       "namespace": "public"
     },
+    "supplierPurchase": {
+      "model": "SupplierPurchase",
+      "namespace": "public"
+    },
+    "supplierPurchaseItem": {
+      "model": "SupplierPurchaseItem",
+      "namespace": "public"
+    },
     "user": {
       "model": "User",
       "namespace": "public"
@@ -177,6 +185,21 @@
                   "model": "SaleItem",
                   "namespace": "public"
                 }
+              },
+              "supplierPurchaseItems": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "bookId"
+                  ]
+                },
+                "to": {
+                  "model": "SupplierPurchaseItem",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -224,6 +247,13 @@
           },
           "Customer": {
             "fields": {
+              "active": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "address": {
                 "nullable": true,
                 "type": {
@@ -307,6 +337,9 @@
             },
             "storage": {
               "fields": {
+                "active": {
+                  "column": "active"
+                },
                 "address": {
                   "column": "address"
                 },
@@ -525,6 +558,20 @@
                   "kind": "scalar"
                 }
               },
+              "customerName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "customerTaxId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -695,6 +742,12 @@
                 },
                 "customerId": {
                   "column": "customerId"
+                },
+                "customerName": {
+                  "column": "customerName"
+                },
+                "customerTaxId": {
+                  "column": "customerTaxId"
                 },
                 "id": {
                   "column": "id"
@@ -1202,6 +1255,21 @@
                   "model": "InventoryMovement",
                   "namespace": "public"
                 }
+              },
+              "purchases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "supplierId"
+                  ]
+                },
+                "to": {
+                  "model": "SupplierPurchase",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -1236,6 +1304,249 @@
               },
               "namespaceId": "public",
               "table": "supplier"
+            }
+          },
+          "SupplierPurchase": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "invoiceNumber": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subtotal": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar"
+                }
+              },
+              "supplierId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "items": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "purchaseId"
+                  ]
+                },
+                "to": {
+                  "model": "SupplierPurchaseItem",
+                  "namespace": "public"
+                }
+              },
+              "supplier": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "supplierId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Supplier",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "invoiceNumber": {
+                  "column": "invoiceNumber"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "subtotal": {
+                  "column": "subtotal"
+                },
+                "supplierId": {
+                  "column": "supplierId"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "supplierPurchase"
+            }
+          },
+          "SupplierPurchaseItem": {
+            "fields": {
+              "bookId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "purchaseId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantity": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "total": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar"
+                }
+              },
+              "unitCost": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "book": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "bookId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Book",
+                  "namespace": "public"
+                }
+              },
+              "purchase": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "purchaseId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "SupplierPurchase",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "bookId": {
+                  "column": "bookId"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "purchaseId": {
+                  "column": "purchaseId"
+                },
+                "quantity": {
+                  "column": "quantity"
+                },
+                "total": {
+                  "column": "total"
+                },
+                "unitCost": {
+                  "column": "unitCost"
+                }
+              },
+              "namespaceId": "public",
+              "table": "supplierPurchaseItem"
             }
           },
           "User": {
@@ -1382,6 +1693,21 @@
                 },
                 "to": {
                   "model": "SalesReturn",
+                  "namespace": "public"
+                }
+              },
+              "supplierPurchases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "SupplierPurchase",
                   "namespace": "public"
                 }
               }
@@ -1550,6 +1876,15 @@
             },
             "customer": {
               "columns": {
+                "active": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "address": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -1785,6 +2120,16 @@
                 "customerId": {
                   "codecId": "pg/int4@1",
                   "nativeType": "int4",
+                  "nullable": true
+                },
+                "customerName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "customerTaxId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
                   "nullable": true
                 },
                 "id": {
@@ -2353,6 +2698,218 @@
               },
               "uniques": []
             },
+            "supplierPurchase": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "invoiceNumber": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subtotal": {
+                  "codecId": "pg/numeric@1",
+                  "nativeType": "numeric",
+                  "nullable": false
+                },
+                "supplierId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "supplierPurchase_supplierId_fkey",
+                  "source": {
+                    "columns": [
+                      "supplierId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplierPurchase"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplier"
+                  }
+                },
+                {
+                  "name": "supplierPurchase_userId_fkey",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplierPurchase"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "user"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "supplierId"
+                  ],
+                  "name": "supplierPurchase_supplierId_idx_c4d9a8b9",
+                  "prefix": "supplierPurchase_supplierId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "supplierPurchase_userId_idx_a489d58a",
+                  "prefix": "supplierPurchase_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "supplierPurchase_pkey"
+              },
+              "uniques": []
+            },
+            "supplierPurchaseItem": {
+              "columns": {
+                "bookId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "purchaseId": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "quantity": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "total": {
+                  "codecId": "pg/numeric@1",
+                  "nativeType": "numeric",
+                  "nullable": false
+                },
+                "unitCost": {
+                  "codecId": "pg/numeric@1",
+                  "nativeType": "numeric",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "supplierPurchaseItem_purchaseId_fkey",
+                  "source": {
+                    "columns": [
+                      "purchaseId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplierPurchaseItem"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplierPurchase"
+                  }
+                },
+                {
+                  "name": "supplierPurchaseItem_bookId_fkey",
+                  "source": {
+                    "columns": [
+                      "bookId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "supplierPurchaseItem"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "book"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "bookId"
+                  ],
+                  "name": "supplierPurchaseItem_bookId_idx_3eec38a3",
+                  "prefix": "supplierPurchaseItem_bookId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "purchaseId"
+                  ],
+                  "name": "supplierPurchaseItem_purchaseId_idx_10cddd2f",
+                  "prefix": "supplierPurchaseItem_purchaseId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "supplierPurchaseItem_pkey"
+              },
+              "uniques": []
+            },
             "user": {
               "columns": {
                 "active": {
@@ -2479,7 +3036,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b31746b26ffcf28f78172ea4b4892610e1fa00fb34f98ab07aa36e38b50a8e78"
+    "storageHash": "3bead586e2e79a7a4311773c569c7b90c835d79c08b2a45ad08ff8232f96a5f2"
   },
   "capabilities": {
     "postgres": {

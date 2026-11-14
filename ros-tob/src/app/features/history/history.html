@@ -3,8 +3,12 @@
         <div>
           <p class="eyebrow amber">REGISTRO</p>
           <h2>Historial de ventas</h2>
-          <p class="muted">Consulta las notas emitidas y sus totales.</p>
+          <p class="muted">Busca notas por nombre, cédula o número de venta.</p>
         </div><button class="secondary-button" (click)="loadSales(salesPage())">↻ Actualizar</button>
+      </div>
+      <div class="toolbar history-search">
+        <div class="search-box"><span>⌕</span><input [(ngModel)]="search" (keyup.enter)="searchSales()"
+            placeholder="Buscar por nombre, cédula/RUC o número de nota"><button type="button" (click)="searchSales()">Buscar</button></div>
       </div>
       <section class="table-panel">
         <table>
@@ -13,6 +17,7 @@
               <th>N.º</th>
               <th>Fecha y hora</th>
               <th>Cliente</th>
+              <th>Cédula / RUC</th>
               <th>Subtotal</th>
               <th>Envío</th>
               <th>Total</th>
@@ -24,6 +29,7 @@
               <td class="mono"><strong>#{{ sale.number }}</strong></td>
               <td>{{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</td>
               <td>{{ sale.customerName || 'Consumidor final' }}</td>
+              <td>{{ sale.customerTaxId || '—' }}</td>
               <td>{{ sale.subtotal | currency:'USD' }}</td>
               <td>{{ sale.shippingAmount | currency:'USD' }}</td>
               <td><strong>{{ sale.total | currency:'USD' }}</strong></td>
@@ -34,7 +40,7 @@
                     (click)="deleteSale(sale)">Eliminar</button></div>
               </td>
             </tr> } @empty { <tr>
-              <td colspan="8" class="empty">No hay ventas registradas.</td>
+              <td colspan="9" class="empty">No hay ventas que coincidan con la búsqueda.</td>
             </tr> }</tbody>
         </table>
       </section>

@@ -17,12 +17,14 @@ model Book {
   inventoryMovements InventoryMovement[]
   returnItems       SalesReturnItem[]
   saleItems          SaleItem[]
+  supplierPurchaseItems SupplierPurchaseItem[]
 
   @@map("book")
 }
 
 model Customer {
   id        Int               @id(map: "customer_pkey") @default(autoincrement())
+  active    Boolean           @default(true)
   address   String?
   createdAt TimestamptzString @default(now())
   email     String?
@@ -53,6 +55,7 @@ model User {
   verificationExpiresAt TimestamptzString?
   inventoryMovements    InventoryMovement[]
   salesReturns          SalesReturn[]
+  supplierPurchases     SupplierPurchase[]
   sales                 Sale[]
 
   @@map("user")
@@ -91,6 +94,7 @@ model Supplier {
   createdAt          TimestamptzString   @default(now())
   updatedAt          TimestamptzString   @default(now())
   inventoryMovements InventoryMovement[]
+  purchases          SupplierPurchase[]
 
   @@map("supplier")
 }
@@ -99,6 +103,8 @@ model Sale {
   id                Int               @id(map: "sale_pkey") @default(autoincrement())
   createdAt         TimestamptzString @default(now())
   customerId        Int?
+  customerName      String?
+  customerTaxId     String?
   number            Int         @unique(map: "sale_number_key")
   receivedConfirmed Boolean     @default(false)
   receivedId        String?
@@ -170,4 +176,37 @@ model SalesReturnItem {
   @@index([returnId], name: "salesReturnItem_returnId_idx")
   @@index([saleItemId], name: "salesReturnItem_saleItemId_idx")
   @@map("salesReturnItem")
+}
+
+model SupplierPurchase {
+  id            Int                   @id(map: "supplierPurchase_pkey") @default(autoincrement())
+  supplierId    Int
+  userId        Int
+  invoiceNumber String?
+  notes         String?
+  subtotal      Numeric
+  createdAt     TimestamptzString     @default(now())
+  supplier      Supplier              @relation(fields: [supplierId], references: [id], map: "supplierPurchase_supplierId_fkey")
+  user          User                  @relation(fields: [userId], references: [id], map: "supplierPurchase_userId_fkey")
+  items         SupplierPurchaseItem[]
+
+  @@index([supplierId], name: "supplierPurchase_supplierId_idx")
+  @@index([userId], name: "supplierPurchase_userId_idx")
+  @@map("supplierPurchase")
+}
+
+model SupplierPurchaseItem {
+  id          Int              @id(map: "supplierPurchaseItem_pkey") @default(autoincrement())
+  purchaseId  Int
+  bookId      Int
+  description String
+  quantity    Int
+  unitCost    Numeric
+  total       Numeric
+  purchase    SupplierPurchase @relation(fields: [purchaseId], references: [id], map: "supplierPurchaseItem_purchaseId_fkey")
+  book        Book             @relation(fields: [bookId], references: [id], map: "supplierPurchaseItem_bookId_fkey")
+
+  @@index([purchaseId], name: "supplierPurchaseItem_purchaseId_idx")
+  @@index([bookId], name: "supplierPurchaseItem_bookId_idx")
+  @@map("supplierPurchaseItem")
 }

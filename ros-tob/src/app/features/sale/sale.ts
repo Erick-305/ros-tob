@@ -44,7 +44,7 @@ export class Sale {
   protected filteredCustomers() { const query = this.customerSearch.trim().toLowerCase(); return this.customers().filter((customer) => !query || [customer.name, customer.taxId, customer.email, customer.phone, customer.city].some((value) => String(value ?? '').toLowerCase().includes(query))); }
   protected selectCustomer(customer: Customer) { this.selectedCustomerId.set(customer.id); this.customer = { taxId: customer.taxId ?? '', name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '', address: customer.address ?? '', city: customer.city ?? '', vendedor: this.customer.vendedor }; this.showSaleCustomer.set(true); }
   protected updateCustomer() { const id = this.selectedCustomerId(); if (!id || !this.customer.name.trim()) { this.notifications.setError('Selecciona un cliente y completa su nombre.'); return; } this.customersService.update(id, this.customer).subscribe({ next: (updated) => { this.customersService.applyUpdate(updated); this.notifications.setNotice('Datos del cliente actualizados.'); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudieron actualizar los datos del cliente.') }); }
-  protected deleteCustomer(customer: Customer, event: Event) { event.stopPropagation(); if (!window.confirm(`¿Eliminar a "${customer.name}" de los clientes guardados?`)) return; this.customersService.delete(customer); }
+  protected deleteCustomer(customer: Customer, event: Event) { event.stopPropagation(); if (!window.confirm(`¿Archivar a "${customer.name}"? Dejará de salir en la búsqueda, pero sus ventas anteriores conservarán su nombre y cédula.`)) return; this.customersService.delete(customer); }
 
   protected scanSale() {
     const query = this.barcode.replace(/[\r\n]/g, '').trim();
@@ -94,7 +94,7 @@ export class Sale {
     if (this.submittingSale()) return;
     if (!this.saleLines().length) { this.notifications.setError('Agrega al menos un libro a la venta.'); return; }
     this.submittingSale.set(true);
-    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: Number(line.quantity), unitPrice: roundMoney(parseDecimal(line.unitPrice)) })), customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: this.shippingActive ? this.shippingAmount : 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
+    const payload = { items: this.saleLines().map((line) => ({ bookId: line.bookId, quantity: Number(line.quantity), unitPrice: roundMoney(parseDecimal(line.unitPrice)) })), customerId: this.selectedCustomerId() ?? undefined, customer: this.customer.name ? this.customer : undefined, sellerName: this.customer.vendedor || undefined, shippingActive: this.shippingActive, shippingAmount: this.shippingActive ? this.shippingAmount : 0, shippingAddress: this.shippingAddress, shippingReference: this.shippingReference, shippingNote: this.shippingNote, receivedConfirmed: this.receivedConfirmed };
     this.salesService.createSale(payload).subscribe({
       next: (sale) => {
         this.submittingSale.set(false);

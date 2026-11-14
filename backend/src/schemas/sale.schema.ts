@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { idSchema, moneySchema } from './common.schema.js';
 
 export const saleSchema = z.object({
+  customerId: idSchema.optional(),
   customer: z.object({
     taxId: z.string().trim().max(40).optional(),
     name: z.string().trim().max(160).optional(),

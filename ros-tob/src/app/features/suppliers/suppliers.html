@@ -23,6 +23,57 @@
     </form>
   </section>
 
+  <section class="panel purchase-form-panel">
+    <div class="panel-head">
+      <div><p class="eyebrow amber">NUEVA ENTRADA</p><h3>Registrar compra del proveedor</h3></div>
+    </div>
+    <form (ngSubmit)="savePurchase()">
+      <div class="form-grid purchase-fields">
+        <label>Proveedor<select name="purchaseSupplier" [(ngModel)]="purchaseForm.supplierId" required>
+          <option [ngValue]="0">Selecciona un proveedor</option>
+          @for (supplier of suppliers(); track supplier.id) { <option [ngValue]="supplier.id">{{ supplier.name }}</option> }
+        </select></label>
+        <label>N.º de factura / referencia<input name="invoiceNumber" [(ngModel)]="purchaseForm.invoiceNumber" maxlength="100" placeholder="Opcional"></label>
+        <label class="wide">Observaciones<input name="purchaseNotes" [(ngModel)]="purchaseForm.notes" maxlength="500" placeholder="Opcional"></label>
+      </div>
+      <div class="scan-box purchase-search">
+        <span>⌕</span>
+        <input name="purchaseBookQuery" [(ngModel)]="bookQuery" (keydown.enter)="$event.preventDefault(); searchPurchaseBook()"
+          placeholder="Busca o escanea el código de un libro">
+        <button class="secondary-button" type="button" (click)="searchPurchaseBook()">Buscar libro</button>
+      </div>
+      @if (bookResults().length) {
+        <div class="customer-results purchase-book-results">
+          @for (book of bookResults(); track book.id) {
+            <button type="button" class="customer-result" (click)="addPurchaseBook(book)">
+              <strong>{{ book.title }}</strong><small>{{ book.barcode }} · Costo actual {{ book.cost | currency:'USD' }}</small>
+            </button>
+          }
+        </div>
+      }
+      <div class="table-panel purchase-lines">
+        <table>
+          <thead><tr><th>Libro</th><th>Cantidad</th><th>Precio unitario del proveedor</th><th>Total</th><th></th></tr></thead>
+          <tbody>
+            @for (item of purchaseItems(); track item.bookId; let index = $index) {
+              <tr>
+                <td><strong>{{ item.title }}</strong><small class="mono">{{ item.barcode }}</small></td>
+                <td><input class="quantity-input" type="number" min="1" step="1" [name]="'purchaseQuantity' + index"
+                  [ngModel]="item.quantity" (ngModelChange)="changePurchaseQuantity(index, $event)"></td>
+                <td><input class="price-input" type="text" inputmode="decimal" [name]="'purchaseCost' + index"
+                  [ngModel]="item.unitCost" (ngModelChange)="changePurchaseCost(index, $event)"></td>
+                <td><strong>{{ purchaseLineTotal(item) | currency:'USD' }}</strong></td>
+                <td><button class="small-button danger-button" type="button" (click)="removePurchaseBook(index)">Quitar</button></td>
+              </tr>
+            } @empty { <tr><td colspan="5" class="empty">Busca un libro para agregarlo a esta entrada.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+      <div class="purchase-total"><span>Total de la compra</span><strong>{{ purchaseTotal() | currency:'USD' }}</strong></div>
+      <div class="supplier-form-actions"><button class="primary-button" type="submit">Registrar entrada y actualizar inventario</button></div>
+    </form>
+  </section>
+
   <section class="table-panel supplier-table-panel">
     <div class="panel-head"><div><p class="eyebrow amber">DIRECTORIO</p><h3>Proveedores registrados</h3></div></div>
     <table>
@@ -38,6 +89,30 @@
             <td><button class="small-button danger-button" type="button" (click)="delete(supplier)">Eliminar</button></td>
           </tr>
         } @empty { <tr><td colspan="6" class="empty">No hay proveedores registrados.</td></tr> }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="table-panel supplier-table-panel">
+    <div class="panel-head"><div><p class="eyebrow amber">NOTAS DE COMPRA</p><h3>Entradas registradas</h3></div></div>
+    <table class="purchase-history-table">
+      <thead><tr><th>N.º</th><th>Fecha</th><th>Proveedor</th><th>Factura / referencia</th><th>Productos</th><th>Total</th><th>Nota</th></tr></thead>
+      <tbody>
+        @for (purchase of purchases(); track purchase.id) {
+          <tr>
+            <td class="mono"><strong>#{{ purchase.number }}</strong></td>
+            <td>{{ purchase.createdAt | date:'dd/MM/yy HH:mm' }}</td>
+            <td>{{ purchase.supplierName }}</td>
+            <td>{{ purchase.invoiceNumber || '—' }}</td>
+            <td><div class="purchase-history-items">
+              @for (item of purchase.items; track item.id) {
+                <span>{{ item.description }} · {{ item.quantity }} × {{ item.unitCost | currency:'USD' }} = {{ item.total | currency:'USD' }}</span>
+              }
+            </div></td>
+            <td><strong>{{ purchase.subtotal | currency:'USD' }}</strong></td>
+            <td><div class="row-actions"><button class="small-button" type="button" (click)="printPurchase(purchase)">Imprimir</button></div></td>
+          </tr>
+        } @empty { <tr><td colspan="7" class="empty">Todavía no hay entradas de compra registradas.</td></tr> }
       </tbody>
     </table>
   </section>

@@ -8,6 +8,15 @@ import { saleSchema } from '../schemas/sale.schema.js';
 
 export const salesRouter = Router();
 
+const normalizeIdentity = (value: string | null | undefined) => (value ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLowerCase();
+
+const normalizeTaxId = (value: string | null | undefined) => (value ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+
 salesRouter.post('/', asyncRoute(async (req, res) => {
   const data = saleSchema.parse(req.body);
   const actorUserId = (req as AuthedRequest).user!.id;
@@ -24,19 +33,43 @@ salesRouter.post('/', asyncRoute(async (req, res) => {
           if (book.stock < item.quantity) throw new DomainError(`Stock insuficiente para ${book.title}.`);
         });
         let customer = null;
-        if (data.customer?.name) {
-          const existingCustomer = data.customer.email
-            ? await tx.orm.public.Customer.where({ email: data.customer.email }).first()
-            : data.customer.taxId
-              ? await tx.orm.public.Customer.where({ taxId: data.customer.taxId }).first()
-              : null;
+        if (data.customerId) {
+          customer = await tx.orm.public.Customer.first({ id: data.customerId });
+          if (!customer || !customer.active) throw new DomainError('El cliente seleccionado ya no está disponible.');
+        }
+        const customerInput = data.customer;
+        if (customerInput?.name) {
+          const customers = customer ? [] : await tx.orm.public.Customer.all();
+          let existingCustomer = customer;
+          if (!existingCustomer && customerInput.taxId) {
+            const taxId = normalizeTaxId(customerInput.taxId);
+            existingCustomer = customers.find((candidate) => candidate.active && normalizeTaxId(candidate.taxId) === taxId) ?? null;
+          }
+          if (!existingCustomer && customerInput.email) {
+            const email = normalizeIdentity(customerInput.email);
+            existingCustomer = customers.find((candidate) => candidate.active && normalizeIdentity(candidate.email) === email) ?? null;
+          }
+          if (!existingCustomer) {
+            const name = normalizeIdentity(customerInput.name);
+            const sameName = customers.filter((candidate) => candidate.active && normalizeIdentity(candidate.name) === name);
+            const phone = customerInput.phone?.replace(/\D/g, '');
+            const compatible = sameName.filter((candidate) =>
+              (!customerInput.taxId || !candidate.taxId || normalizeTaxId(candidate.taxId) === normalizeTaxId(customerInput.taxId))
+              && (!customerInput.email || !candidate.email || normalizeIdentity(candidate.email) === normalizeIdentity(customerInput.email)));
+            const samePhone = phone
+              ? compatible.filter((candidate) => candidate.phone?.replace(/\D/g, '') === phone)
+              : customerInput.taxId || customerInput.email ? [] : compatible;
+            if (samePhone.length > 1) throw new DomainError('Hay varios clientes con ese nombre. Selecciona uno del listado o completa la cédula.');
+            existingCustomer = samePhone[0] ?? null;
+          }
           const customerData = {
-            name: data.customer.name,
-            ...(data.customer.taxId === undefined ? {} : { taxId: data.customer.taxId }),
-            ...(data.customer.phone === undefined ? {} : { phone: data.customer.phone }),
-            ...(data.customer.email === undefined ? {} : { email: data.customer.email }),
-            ...(data.customer.address === undefined ? {} : { address: data.customer.address }),
-            ...(data.customer.city === undefined ? {} : { city: data.customer.city }),
+            name: customerInput.name,
+            ...(customerInput.taxId === undefined ? {} : { taxId: customerInput.taxId }),
+            ...(customerInput.phone === undefined ? {} : { phone: customerInput.phone }),
+            ...(customerInput.email === undefined ? {} : { email: customerInput.email }),
+            ...(customerInput.address === undefined ? {} : { address: customerInput.address }),
+            ...(customerInput.city === undefined ? {} : { city: customerInput.city }),
+            active: true,
           };
           customer = existingCustomer
             ? await tx.orm.public.Customer.where({ id: existingCustomer.id }).update(customerData)
@@ -46,7 +79,7 @@ salesRouter.post('/', asyncRoute(async (req, res) => {
         const number = Math.max(0, ...sales.map((sale: any) => sale.number)) + 1;
         const subtotal = roundMoney(items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0));
         const sale = await tx.orm.public.Sale.create({
-          number, customerId: customer?.id ?? null, userId: actorUserId, subtotal: String(subtotal),
+          number, customerId: customer?.id ?? null, customerName: customer?.name ?? null, customerTaxId: customer?.taxId ?? null, userId: actorUserId, subtotal: String(subtotal),
           shippingActive: data.shippingActive, shippingAmount: String(shippingAmount),
           receivedConfirmed: data.receivedConfirmed, status: 'COMPLETED',
           ...(data.sellerName === undefined ? {} : { sellerName: data.sellerName }),
@@ -78,13 +111,32 @@ salesRouter.post('/', asyncRoute(async (req, res) => {
 
 salesRouter.get('/', asyncRoute(async (req, res) => {
   const page = Math.max(1, Number(req.query['page'] ?? 1));
+  const search = String(req.query['q'] ?? '').trim();
   const pageSize = 20;
-  const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(pageSize).offset((page - 1) * pageSize).all();
+  let hasNextPage: boolean;
+  let sales = search
+    ? await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).all()
+    : await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(pageSize).offset((page - 1) * pageSize).all();
+  if (search) {
+    const customers = await db.orm.public.Customer.all();
+    const normalizedSearch = normalizeIdentity(search);
+    const normalizedTaxSearch = normalizeTaxId(search);
+    const customerIds = new Set(customers.filter((customer) => normalizeIdentity(customer.name).includes(normalizedSearch)
+      || Boolean(normalizedTaxSearch && normalizeTaxId(customer.taxId).includes(normalizedTaxSearch))).map((customer) => customer.id));
+    sales = sales.filter((sale) => customerIds.has(sale.customerId ?? -1)
+      || String(sale.number).includes(search)
+      || normalizeIdentity(sale.customerName).includes(normalizedSearch)
+      || normalizeTaxId(sale.customerTaxId).includes(normalizeTaxId(search)));
+    hasNextPage = sales.length > page * pageSize;
+    sales = sales.slice((page - 1) * pageSize, page * pageSize);
+  } else {
+    hasNextPage = sales.length === pageSize;
+  }
   const result = await Promise.all(sales.map(async (sale: any) => {
     const customer = sale.customerId ? await db.orm.public.Customer.first({ id: sale.customerId }) : null;
-    return { ...sale, customerName: customer?.name ?? null, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) };
+    return { ...sale, customerName: customer?.name ?? sale.customerName ?? null, customerTaxId: customer?.taxId ?? sale.customerTaxId ?? null, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount) };
   }));
-  res.json({ items: result, page, pageSize, hasNextPage: result.length === pageSize });
+  res.json({ items: result, page, pageSize, hasNextPage });
 }));
 
 salesRouter.get('/:id', asyncRoute(async (req, res) => {
@@ -96,7 +148,8 @@ salesRouter.get('/:id', asyncRoute(async (req, res) => {
     sale.customerId ? db.orm.public.Customer.first({ id: sale.customerId }) : Promise.resolve(null),
     db.orm.public.User.first({ id: sale.userId }),
   ]);
-  res.json({ ...sale, customer, user, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
+  const customerDetails = customer ?? (sale.customerName || sale.customerTaxId ? { name: sale.customerName, taxId: sale.customerTaxId } : null);
+  res.json({ ...sale, customer: customerDetails, user, subtotal: money(sale.subtotal), shippingAmount: money(sale.shippingAmount), total: money(sale.subtotal) + money(sale.shippingAmount), items });
 }));
 
 salesRouter.delete('/:id', asyncRoute(async (req, res) => {

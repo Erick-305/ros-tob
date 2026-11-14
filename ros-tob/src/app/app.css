@@ -874,6 +874,51 @@ td small,
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.purchase-form-panel {
+	margin-bottom: 18px;
+}
+
+.purchase-fields {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.purchase-search {
+	margin: 16px 0 10px;
+}
+
+.purchase-book-results {
+	margin-bottom: 14px;
+}
+
+.purchase-lines {
+	margin-top: 16px;
+}
+
+.purchase-total {
+	display: flex;
+	justify-content: end;
+	align-items: center;
+	gap: 18px;
+	padding: 18px 4px 4px;
+	font-weight: 700;
+}
+
+.purchase-total strong {
+	color: #d67d32;
+	font: 700 24px 'Space Grotesk', sans-serif;
+}
+
+.purchase-history-items {
+	display: grid;
+	gap: 5px;
+	min-width: 260px;
+	white-space: normal;
+}
+
+.history-search {
+	margin-bottom: 17px;
+}
+
 .supplier-form-actions,
 .return-form-actions {
 	display: flex;
@@ -1361,6 +1406,11 @@ td small,
 
 	.form-grid .wide {
 		grid-column: auto;
+	}
+
+	.supplier-form,
+	.purchase-fields {
+		grid-template-columns: 1fr;
 	}
 
 	.return-line {

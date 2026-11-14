@@ -26,7 +26,7 @@ export class CustomersService {
 
   delete(customer: Customer) {
     this.http.delete(`/api/customers/${customer.id}`).subscribe({
-      next: () => { this.notifications.setNotice(`${customer.name} eliminado.`); this.load(); },
+      next: () => { this.notifications.setNotice(`${customer.name} archivado. Sus ventas anteriores conservan sus datos.`); this.load(); },
       error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo eliminar el cliente.'),
     });
   }
