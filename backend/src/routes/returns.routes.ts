@@ -8,6 +8,14 @@ import { idSchema } from '../schemas/common.schema.js';
 
 export const returnsRouter = Router();
 
+const normalizeIdentity = (value: string | null | undefined) => (value ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLowerCase();
+const normalizeTaxId = (value: string | null | undefined) => (value ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+
 const returnSchema = z.object({
   saleId: idSchema,
   reason: z.string().trim().min(1).max(300),
@@ -21,17 +29,31 @@ const returnSchema = z.object({
   }
 });
 
-returnsRouter.get('/sales', asyncRoute(async (_req, res) => {
-  const sales = await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(100).all();
+returnsRouter.get('/sales', asyncRoute(async (req, res) => {
+  const search = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+  const sales = search
+    ? await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).all()
+    : await db.orm.public.Sale.orderBy((sale) => sale.createdAt.desc()).limit(100).all();
   const [saleItems, returnItems, customers] = await Promise.all([
     db.orm.public.SaleItem.all(),
     db.orm.public.SalesReturnItem.all(),
     db.orm.public.Customer.all(),
   ]);
   const customersById = new Map(customers.map((customer) => [customer.id, customer]));
+  const searchIdentity = normalizeIdentity(search);
+  const searchTaxId = normalizeTaxId(search);
+  const searchNumber = search.replace(/^(venta|nota)\s*#?\s*/i, '').replace(/^#\s*/, '').trim()
+    .replace(/^0+(?=\d)/, '');
+  const matchingSales = search ? sales.filter((sale) => {
+    const customer = customersById.get(sale.customerId ?? -1);
+    return normalizeIdentity(customer?.name ?? sale.customerName).includes(searchIdentity)
+      || Boolean(searchTaxId && normalizeTaxId(customer?.taxId ?? sale.customerTaxId).includes(searchTaxId))
+      || Boolean(/^\d+$/.test(searchNumber) && String(sale.number).includes(searchNumber));
+  }) : sales;
   const returnedQuantities = new Map<number, number>();
   for (const item of returnItems) returnedQuantities.set(item.saleItemId, (returnedQuantities.get(item.saleItemId) ?? 0) + item.quantity);
-  const items = saleItems.filter((item) => sales.some((sale) => sale.id === item.saleId)).map((item) => ({
+  const matchingSaleIds = new Set(matchingSales.map((sale) => sale.id));
+  const items = saleItems.filter((item) => matchingSaleIds.has(item.saleId)).map((item) => ({
     id: item.id,
     saleId: item.saleId,
     description: item.description,
@@ -40,14 +62,14 @@ returnsRouter.get('/sales', asyncRoute(async (_req, res) => {
     returnedQuantity: returnedQuantities.get(item.id) ?? 0,
     unitPrice: money(item.unitPrice),
   }));
-  res.json(sales.map((sale) => ({
+  res.json(matchingSales.map((sale) => ({
     id: sale.id,
     number: sale.number,
     createdAt: sale.createdAt,
     customerName: customersById.get(sale.customerId ?? -1)?.name ?? sale.customerName ?? null,
     customerTaxId: customersById.get(sale.customerId ?? -1)?.taxId ?? sale.customerTaxId ?? null,
     items: items.filter((item) => item.saleId === sale.id && item.returnedQuantity < item.quantity),
-  })).filter((sale) => sale.items.length > 0));
+  })).filter((sale) => sale.items.length > 0).slice(0, 100));
 }));
 
 returnsRouter.get('/', asyncRoute(async (_req, res) => {

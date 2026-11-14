@@ -12,16 +12,28 @@
     <div class="panel-head"><div><p class="eyebrow amber">NUEVA DEVOLUCIÓN</p><h3>Registrar devolución</h3></div></div>
     <form (ngSubmit)="save()">
       <div class="form-grid return-fields">
-        <label>Buscar venta por nombre, cédula o número<input name="saleSearch" [ngModel]="saleSearch" (ngModelChange)="searchSales($event)" placeholder="Nombre, cédula/RUC o # de nota"></label>
-        <label>Venta original
-          <select name="saleId" [ngModel]="form.saleId" (ngModelChange)="changeSale($event)" required>
-            <option [ngValue]="0">Selecciona una venta</option>
-            @for (sale of filteredSales(); track sale.id) {
-              <option [ngValue]="sale.id">Venta #{{ sale.number }} — {{ sale.customerName || 'Consumidor final' }}{{ sale.customerTaxId ? ' · ' + sale.customerTaxId : '' }} — {{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</option>
-            }
-          </select>
-        </label>
+        <label>Buscar una venta pendiente por nombre, cédula/RUC o número<input name="saleSearch" [ngModel]="saleSearch" (ngModelChange)="searchSales($event)" placeholder="Escribe nombre, cédula/RUC o # de nota"></label>
         <label class="wide">Motivo de devolución<input name="reason" [(ngModel)]="form.reason" maxlength="300" required placeholder="Describe brevemente el motivo"></label>
+      </div>
+      <div class="return-search-results" aria-live="polite">
+        @if (salesLoading()) {
+          <p class="return-search-message">Buscando ventas pendientes...</p>
+        } @else if (salesSearchError()) {
+          <p class="return-search-message error">{{ salesSearchError() }}</p>
+        } @else if (sales().length) {
+          <p class="return-search-heading">{{ saleSearch.trim() ? 'Resultados de búsqueda' : 'Ventas recientes pendientes' }} · Selecciona una venta</p>
+          @for (sale of visibleSales(); track sale.id) {
+            <button type="button" class="return-sale-result" [class.selected]="form.saleId === sale.id" (click)="changeSale(sale.id)">
+              <span class="return-sale-result-main"><strong>Nota #{{ sale.number }}</strong><span>{{ sale.customerName || 'Consumidor final' }}</span></span>
+              <small>Cédula/RUC: {{ sale.customerTaxId || 'No registrado' }} · {{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</small>
+            </button>
+          }
+          @if (!saleSearch.trim() && sales().length > visibleSales().length) {
+            <p class="return-search-hint">Escribe arriba para buscar entre las demás ventas.</p>
+          }
+        } @else {
+          <p class="return-search-message">{{ saleSearch.trim() ? 'No encontramos ventas pendientes que coincidan. Revisa el nombre, cédula/RUC o número.' : 'No hay ventas pendientes de devolución.' }}</p>
+        }
       </div>
       @if (selectedSale(); as sale) {
         <div class="return-customer-summary">
@@ -30,28 +42,32 @@
           <div><small>NOTA</small><strong>#{{ sale.number }}</strong></div>
         </div>
       }
-      <div class="return-lines">
-        @for (line of form.items; track $index; let index = $index) {
-          <div class="return-line">
-            <label>Libro devuelto
-              <select [name]="'saleItem' + index" [(ngModel)]="line.saleItemId" required>
-                <option [ngValue]="0">Selecciona un libro</option>
-                @for (item of selectedSale()?.items; track item.id) {
-                  <option [ngValue]="item.id">{{ item.description }} — quedan {{ item.quantity - item.returnedQuantity }} de {{ item.quantity }}</option>
-                }
-              </select>
-            </label>
-            <label>Cantidad
-              <input [name]="'quantity' + index" type="number" min="1" [max]="line.saleItemId ? availableQuantity(line.saleItemId, index) : 1" [(ngModel)]="line.quantity" required>
-            </label>
-            @if (form.items.length > 1) { <button class="small-button danger-button" type="button" (click)="removeItem(index)">Quitar</button> }
-          </div>
-        }
-      </div>
-      <div class="return-form-actions">
-        <button class="secondary-button" type="button" (click)="addItem()" [disabled]="!selectedSale()">＋ Agregar libro</button>
-        <button class="primary-button" type="submit">Registrar devolución</button>
-      </div>
+      @if (selectedSale()) {
+        <div class="return-lines">
+          @for (line of form.items; track $index; let index = $index) {
+            <div class="return-line">
+              <label>Libro devuelto
+                <select [name]="'saleItem' + index" [(ngModel)]="line.saleItemId" required>
+                  <option [ngValue]="0">Selecciona un libro</option>
+                  @for (item of selectedSale()?.items; track item.id) {
+                    <option [ngValue]="item.id">{{ item.description }} — quedan {{ item.quantity - item.returnedQuantity }} de {{ item.quantity }}</option>
+                  }
+                </select>
+              </label>
+              <label>Cantidad
+                <input [name]="'quantity' + index" type="number" min="1" [max]="line.saleItemId ? availableQuantity(line.saleItemId, index) : 1" [(ngModel)]="line.quantity" required>
+              </label>
+              @if (form.items.length > 1) { <button class="small-button danger-button" type="button" (click)="removeItem(index)">Quitar</button> }
+            </div>
+          }
+        </div>
+        <div class="return-form-actions">
+          <button class="secondary-button" type="button" (click)="addItem()">＋ Agregar libro</button>
+          <button class="primary-button" type="submit">Registrar devolución</button>
+        </div>
+      } @else {
+        <p class="return-select-prompt">Selecciona una venta de los resultados para ver los libros que puedes devolver.</p>
+      }
     </form>
   </section>
 

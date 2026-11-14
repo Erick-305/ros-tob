@@ -14,6 +14,8 @@ export class Returns {
   private readonly notifications = inject(NotificationService);
 
   protected readonly sales = this.service.sales;
+  protected readonly salesLoading = this.service.salesLoading;
+  protected readonly salesSearchError = this.service.salesSearchError;
   protected readonly returns = this.service.returns;
   protected readonly form: { saleId: number; reason: string; items: { saleItemId: number; quantity: number }[] } = {
     saleId: 0,
@@ -23,17 +25,11 @@ export class Returns {
   protected saleSearch = '';
 
   protected selectedSale(): ReturnableSale | undefined { return this.sales().find((sale) => sale.id === Number(this.form.saleId)); }
-  protected filteredSales() {
-    const query = this.saleSearch.trim().toLocaleLowerCase();
-    return this.sales().filter((sale) => !query || [
-      String(sale.number),
-      sale.customerName ?? '',
-      sale.customerTaxId ?? '',
-    ].some((value) => value.toLocaleLowerCase().includes(query)));
-  }
+  protected visibleSales() { return this.saleSearch.trim() ? this.sales() : this.sales().slice(0, 6); }
   protected searchSales(query: string) {
     this.saleSearch = query;
     if (this.form.saleId) this.changeSale(0);
+    this.service.searchSales(query);
   }
   protected changeSale(saleId: number) {
     this.form.saleId = Number(saleId);
@@ -71,11 +67,16 @@ export class Returns {
         this.form.saleId = 0;
         this.form.reason = '';
         this.form.items = [{ saleItemId: 0, quantity: 1 }];
+        this.saleSearch = '';
         this.service.refreshAfterCreate();
       },
       error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo registrar la devolución.'),
     });
   }
 
-  protected refresh() { this.service.load(); }
+  protected refresh() {
+    this.changeSale(0);
+    this.service.searchSales(this.saleSearch);
+    this.service.loadReturns();
+  }
 }

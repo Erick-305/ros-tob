@@ -949,12 +949,85 @@ td small,
 }
 
 .return-fields {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .return-fields select,
 .return-line select {
 	width: 100%;
+}
+
+.return-search-results {
+	display: grid;
+	gap: 7px;
+	margin-top: 12px;
+	max-height: 280px;
+	overflow-y: auto;
+	overscroll-behavior-y: contain;
+}
+
+.return-search-heading,
+.return-search-hint {
+	margin: 0;
+	color: #71867c;
+	font-size: 12px;
+}
+
+.return-search-heading {
+	font-weight: 700;
+}
+
+.return-sale-result {
+	display: grid;
+	gap: 5px;
+	width: 100%;
+	padding: 11px 13px;
+	border: 1px solid #dfe4dd;
+	border-radius: 7px;
+	background: #fff;
+	color: #315b4d;
+	text-align: left;
+	cursor: pointer;
+}
+
+.return-sale-result:hover,
+.return-sale-result.selected {
+	border-color: #5e997d;
+	background: #e6f1e9;
+}
+
+.return-sale-result-main {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 12px;
+	align-items: center;
+}
+
+.return-sale-result-main strong {
+	font-size: 13px;
+}
+
+.return-sale-result small {
+	color: #71867c;
+}
+
+.return-search-message,
+.return-select-prompt {
+	margin: 0;
+	padding: 11px 13px;
+	border: 1px dashed #dfe4dd;
+	border-radius: 7px;
+	background: #f7faf7;
+	color: #71867c;
+	font-size: 13px;
+}
+
+.return-search-message.error {
+	color: #a44c42;
+}
+
+.return-select-prompt {
+	margin-top: 14px;
 }
 
 .return-customer-summary {
@@ -1204,6 +1277,30 @@ td small,
 
 .dark-mode .return-customer-summary strong {
 	color: #edf5ef;
+}
+
+.dark-mode .return-sale-result,
+.dark-mode .return-search-message,
+.dark-mode .return-select-prompt {
+	background: #1b2b25;
+	border-color: #466354;
+	color: #d8e8df;
+}
+
+.dark-mode .return-sale-result:hover,
+.dark-mode .return-sale-result.selected {
+	background: #304b3e;
+	border-color: #74a88e;
+}
+
+.dark-mode .return-sale-result small,
+.dark-mode .return-search-heading,
+.dark-mode .return-search-hint {
+	color: #b4c5bc;
+}
+
+.dark-mode .return-search-message.error {
+	color: #ffc0b8;
 }
 
 .dark-mode .shipping-fields label,

@@ -41,14 +41,42 @@ export class ReturnsService {
   private readonly dashboard = inject(DashboardService);
 
   readonly sales = signal<ReturnableSale[]>([]);
+  readonly salesLoading = signal(false);
+  readonly salesSearchError = signal('');
   readonly returns = signal<ReturnRecord[]>([]);
+  private salesSearchRequest = 0;
+  private salesSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
   load() {
-    this.http.get<ReturnableSale[]>('/api/returns/sales').subscribe({
-      next: (sales) => this.sales.set(sales),
-      error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudieron cargar las ventas para devolución.'),
-    });
+    this.searchSales();
     this.loadReturns();
+  }
+
+  searchSales(query = '') {
+    const request = ++this.salesSearchRequest;
+    if (this.salesSearchTimer) clearTimeout(this.salesSearchTimer);
+    this.sales.set([]);
+    this.salesLoading.set(true);
+    this.salesSearchError.set('');
+    const search = query.trim();
+    const load = () => this.http.get<ReturnableSale[]>('/api/returns/sales', {
+      params: search ? { q: search } : {},
+    }).subscribe({
+      next: (sales) => {
+        if (request !== this.salesSearchRequest) return;
+        this.sales.set(sales);
+        this.salesLoading.set(false);
+      },
+      error: (err) => {
+        if (request !== this.salesSearchRequest) return;
+        const message = err.error?.message ?? 'No se pudieron cargar las ventas para devolución.';
+        this.salesSearchError.set(message);
+        this.salesLoading.set(false);
+        this.notifications.setError(message);
+      },
+    });
+    if (search) this.salesSearchTimer = setTimeout(load, 250);
+    else load();
   }
 
   loadReturns() {
