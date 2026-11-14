@@ -9,14 +9,15 @@ import { idSchema, moneySchema } from '../schemas/common.schema.js';
 export const inventoryRouter = Router();
 
 inventoryRouter.post('/inventory/entries', asyncRoute(async (req, res) => {
-  const data = z.object({ bookId: idSchema, quantity: z.coerce.number().int().positive(), cost: moneySchema.optional(), userId: idSchema.default(1), reason: z.string().trim().max(200).default('Entrada de inventario') }).parse(req.body);
+  const data = z.object({ bookId: idSchema, quantity: z.coerce.number().int().positive(), cost: moneySchema.optional(), supplierId: idSchema.optional(), userId: idSchema.default(1), reason: z.string().trim().max(200).default('Entrada de inventario') }).parse(req.body);
   const actorUserId = (req as AuthedRequest).user!.id;
   const result = await db.transaction(async (tx) => {
     const book = await tx.orm.public.Book.first({ id: data.bookId });
     if (!book || !book.active) throw new DomainError('Libro no encontrado.');
+    if (data.supplierId && !await tx.orm.public.Supplier.first({ id: data.supplierId })) throw new DomainError('Proveedor no encontrado.');
     const newStock = book.stock + data.quantity;
     const updated = await tx.orm.public.Book.where({ id: book.id }).update({ stock: newStock, ...(data.cost === undefined ? {} : { cost: String(data.cost) }) });
-    await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'ENTRY', quantity: data.quantity, previousStock: book.stock, newStock, reason: data.reason });
+    await tx.orm.public.InventoryMovement.create({ bookId: book.id, userId: actorUserId, type: 'ENTRY', quantity: data.quantity, previousStock: book.stock, newStock, reason: data.reason, ...(data.supplierId === undefined ? {} : { supplierId: data.supplierId }), unitCost: String(data.cost ?? book.cost) });
     return updated;
   });
   res.status(201).json(publicBook(result));

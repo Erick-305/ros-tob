@@ -5,6 +5,8 @@ import { History } from './features/history/history';
 import { Inventory } from './features/inventory/inventory';
 import { Sale } from './features/sale/sale';
 import { Users } from './features/users/users';
+import { Suppliers } from './features/suppliers/suppliers';
+import { Returns } from './features/returns/returns';
 import { AuthService } from './services/auth.service';
 import { DashboardService } from './services/dashboard.service';
 import { parseDecimal } from './services/decimal.util';
@@ -15,7 +17,7 @@ import { NotificationService } from './services/notification.service';
 import { UpdateService } from './services/update.service';
 
 @Component({
-  imports: [FormsModule, Dashboard, Inventory, Sale, History, Users],
+  imports: [FormsModule, Dashboard, Inventory, Sale, History, Users, Suppliers, Returns],
   selector: 'app-root',
   templateUrl: './app.html',
 })
@@ -38,6 +40,7 @@ export class App {
   protected readonly showBookForm = this.inventory.showBookForm;
   protected readonly bookFormError = this.inventory.bookFormError;
   protected readonly showEntryForm = this.inventory.showEntryForm;
+  protected readonly inventoryService = this.inventory;
   protected readonly editingBook = this.inventory.editingBook;
   protected readonly parseDecimal = parseDecimal;
   protected readonly updateAvailable = this.updateService.updateAvailable;

@@ -844,14 +844,84 @@ td small,
 	font-weight: 600;
 }
 
+.form-grid select,
+.return-line select {
+	border: 1px solid #dfe4dd;
+	border-radius: 5px;
+	padding: 9px;
+	outline-color: #5e997d;
+	background: #fff;
+}
+
 .shipping-fields input,
 .shipping-fields textarea,
 .form-grid input,
+.form-grid select,
 .customer-picker input {
 	border: 1px solid #dfe4dd;
 	border-radius: 5px;
 	padding: 9px;
 	outline-color: #5e997d;
+}
+
+.supplier-form-panel,
+.return-form-panel,
+.supplier-table-panel {
+	margin-bottom: 18px;
+}
+
+.supplier-form {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.supplier-form-actions,
+.return-form-actions {
+	display: flex;
+	align-items: center;
+	justify-content: end;
+	gap: 10px;
+	grid-column: 1 / -1;
+}
+
+.return-fields {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.return-fields select,
+.return-line select {
+	width: 100%;
+}
+
+.return-lines {
+	display: grid;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+.return-line {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 120px auto;
+	align-items: end;
+	gap: 12px;
+}
+
+.return-line label {
+	display: grid;
+	gap: 6px;
+	color: #6f8178;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.return-line input {
+	width: 100%;
+	border: 1px solid #dfe4dd;
+	border-radius: 5px;
+	padding: 9px;
+}
+
+.return-form-actions {
+	margin-top: 18px;
 }
 
 .shipping-fields textarea {
@@ -1291,6 +1361,25 @@ td small,
 
 	.form-grid .wide {
 		grid-column: auto;
+	}
+
+	.return-line {
+		grid-template-columns: minmax(0, 1fr) 80px;
+	}
+
+	.return-line>.small-button {
+		grid-column: 1 / -1;
+	}
+
+	.supplier-form-actions,
+	.return-form-actions {
+		flex-wrap: wrap;
+		justify-content: stretch;
+	}
+
+	.supplier-form-actions button,
+	.return-form-actions button {
+		flex: 1;
 	}
 }
 

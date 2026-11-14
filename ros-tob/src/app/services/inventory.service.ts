@@ -3,12 +3,14 @@ import { Injectable, inject, signal } from '@angular/core';
 import { DashboardService } from './dashboard.service';
 import type { Book } from './models';
 import { NotificationService } from './notification.service';
+import { SuppliersService } from './suppliers.service';
 
 @Injectable({ providedIn: 'root' })
 export class InventoryService {
   private readonly http = inject(HttpClient);
   private readonly notifications = inject(NotificationService);
   private readonly dashboardService = inject(DashboardService);
+  private readonly suppliersService = inject(SuppliersService);
 
   readonly books = signal<Book[]>([]);
   readonly booksPage = signal(1);
@@ -17,10 +19,12 @@ export class InventoryService {
   readonly bookFormError = signal('');
   readonly showEntryForm = signal(false);
   readonly editingBook = signal<Book | null>(null);
+  readonly suppliers = this.suppliersService.suppliers;
 
   search = '';
   category = '';
   bookForm = { barcode: '', title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 };
+  entrySupplierId = 0;
 
   loadBooks(page = 1) { this.http.get<{ items: Book[]; page: number; hasNextPage: boolean }>('/api/books', { params: { ...(this.search ? { q: this.search } : {}), page } }).subscribe({ next: (data) => { this.books.set(data.items); this.booksPage.set(data.page); this.booksHasNextPage.set(data.hasNextPage); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo cargar el inventario.') }); }
   searchBooks() { this.loadBooks(1); }
@@ -41,7 +45,7 @@ export class InventoryService {
 
   openNewBook(barcode = '') { this.bookFormError.set(''); this.bookForm = { barcode, title: '', author: '', category: '', cost: 0, salePrice: 0, stock: 0, minStock: 0 }; this.showBookForm.set(true); }
   openEditBook(book: Book) { this.bookFormError.set(''); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: book.stock, minStock: book.minStock }; this.editingBook.set(book); this.showBookForm.set(true); }
-  openEntry(book: Book) { this.editingBook.set(book); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: 0, minStock: book.minStock }; this.showEntryForm.set(true); }
+  openEntry(book: Book) { this.suppliersService.load(); this.entrySupplierId = 0; this.editingBook.set(book); this.bookForm = { barcode: book.barcode, title: book.title, author: book.author, category: book.category, cost: book.cost, salePrice: book.salePrice, stock: 0, minStock: book.minStock }; this.showEntryForm.set(true); }
 
   saveBook() { this.bookFormError.set(''); this.http.post<Book>('/api/books', this.bookForm).subscribe({ next: () => { this.showBookForm.set(false); this.notifications.setNotice('Libro registrado correctamente.'); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.bookFormError.set(err.error?.message ?? 'No se pudo registrar el libro.') }); }
   updateBook() {
@@ -55,7 +59,7 @@ export class InventoryService {
   }
   private apiErrorMessage(err: any, fallback: string) { const fields = Object.keys(err.error?.errors?.fieldErrors ?? {}); return (err.error?.message ?? fallback) + (fields.length ? ` Campos: ${fields.join(', ')}.` : ''); }
   deleteBook(book: Book) { if (!window.confirm(`¿Eliminar "${book.title}" del inventario? El historial de ventas se conservará.`)) return; this.http.delete(`/api/books/${book.id}`).subscribe({ next: () => { this.notifications.setNotice(`${book.title} eliminado del inventario.`); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo eliminar el libro.') }); }
-  saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.notifications.setError('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost }).subscribe({ next: () => { this.showEntryForm.set(false); this.notifications.setNotice(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.dashboardService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
+  saveEntry() { const book = this.editingBook(); if (!book || this.bookForm.stock < 1) { this.notifications.setError('Selecciona un libro y una cantidad válida.'); return; } this.http.post<Book>('/api/inventory/entries', { bookId: book.id, quantity: this.bookForm.stock, cost: this.bookForm.cost, ...(this.entrySupplierId ? { supplierId: this.entrySupplierId } : {}) }).subscribe({ next: () => { this.showEntryForm.set(false); this.notifications.setNotice(`Entrada registrada para ${book.title}.`); this.loadBooks(); this.dashboardService.load(); this.suppliersService.load(); }, error: (err) => this.notifications.setError(err.error?.message ?? 'No se pudo registrar la entrada.') }); }
 
   scanInventory() { const code = this.bookForm.barcode.replace(/[\r\n]/g, '').trim(); this.bookForm.barcode = code; if (code) { this.http.get<Book>(`/api/books/barcode/${encodeURIComponent(code)}`).subscribe({ next: (book) => this.notifications.setNotice(`${book.title} encontrado. Stock: ${book.stock}`), error: () => this.openNewBook(code) }); } }
 

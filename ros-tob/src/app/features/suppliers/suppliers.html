@@ -1,0 +1,56 @@
+<section class="page">
+  <div class="page-actions">
+    <div>
+      <p class="eyebrow amber">COMPRAS</p>
+      <h2>Proveedores</h2>
+      <p class="muted">Administra tus proveedores y consulta los precios registrados en cada entrada.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="refresh()">↻ Actualizar</button>
+  </div>
+
+  <section class="panel supplier-form-panel">
+    <div class="panel-head">
+      <div><p class="eyebrow amber">DIRECTORIO</p><h3>Registrar proveedor</h3></div>
+    </div>
+    <form class="form-grid supplier-form" (ngSubmit)="save()">
+      <label>Nombre del proveedor<input name="name" [(ngModel)]="form.name" maxlength="160" required></label>
+      <label>Persona de contacto<input name="contactName" [(ngModel)]="form.contactName" maxlength="160"></label>
+      <label>Teléfono<input name="phone" [(ngModel)]="form.phone" maxlength="40"></label>
+      <label>Correo electrónico<input name="email" type="email" [(ngModel)]="form.email" maxlength="254"></label>
+      <label>Dirección<input name="address" [(ngModel)]="form.address" maxlength="250"></label>
+      <label>Notas<input name="notes" [(ngModel)]="form.notes" maxlength="500"></label>
+      <div class="supplier-form-actions"><button class="primary-button" type="submit">＋ Guardar proveedor</button></div>
+    </form>
+  </section>
+
+  <section class="table-panel supplier-table-panel">
+    <div class="panel-head"><div><p class="eyebrow amber">DIRECTORIO</p><h3>Proveedores registrados</h3></div></div>
+    <table>
+      <thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Correo</th><th>Dirección</th><th>Acciones</th></tr></thead>
+      <tbody>
+        @for (supplier of suppliers(); track supplier.id) {
+          <tr>
+            <td><strong>{{ supplier.name }}</strong>@if (supplier.notes) { <small>{{ supplier.notes }}</small> }</td>
+            <td>{{ supplier.contactName || '—' }}</td>
+            <td>{{ supplier.phone || '—' }}</td>
+            <td>{{ supplier.email || '—' }}</td>
+            <td>{{ supplier.address || '—' }}</td>
+            <td><button class="small-button danger-button" type="button" (click)="delete(supplier)">Eliminar</button></td>
+          </tr>
+        } @empty { <tr><td colspan="6" class="empty">No hay proveedores registrados.</td></tr> }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="table-panel supplier-table-panel">
+    <div class="panel-head"><div><p class="eyebrow amber">COMPRAS</p><h3>Entradas por proveedor</h3></div></div>
+    <table>
+      <thead><tr><th>Fecha</th><th>Proveedor</th><th>Libro</th><th>Cantidad</th><th>Costo unitario</th></tr></thead>
+      <tbody>
+        @for (entry of entries(); track entry.id) {
+          <tr><td>{{ entry.createdAt | date:'dd/MM/yy HH:mm' }}</td><td>{{ entry.supplierName }}</td><td>{{ entry.bookTitle }}</td><td>{{ entry.quantity }}</td><td>{{ entry.unitCost | currency:'USD' }}</td></tr>
+        } @empty { <tr><td colspan="5" class="empty">Las entradas registradas con proveedor aparecerán aquí.</td></tr> }
+      </tbody>
+    </table>
+  </section>
+</section>

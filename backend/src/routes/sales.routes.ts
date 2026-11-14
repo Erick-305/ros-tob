@@ -104,6 +104,8 @@ salesRouter.delete('/:id', asyncRoute(async (req, res) => {
   await db.transaction(async (tx) => {
     const sale = await tx.orm.public.Sale.first({ id });
     if (!sale) throw new DomainError('Venta no encontrada.');
+    const returns = await tx.orm.public.SalesReturn.where({ saleId: id }).all();
+    if (returns.length) throw new DomainError('No se puede eliminar una venta con devoluciones registradas.');
     const items = await tx.orm.public.SaleItem.where({ saleId: id }).all();
     for (const item of items) {
       const book = await tx.orm.public.Book.first({ id: item.bookId });

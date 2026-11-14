@@ -12,6 +12,8 @@ import { customersRouter } from './routes/customers.routes.js';
 import { dashboardRouter } from './routes/dashboard.routes.js';
 import { inventoryRouter } from './routes/inventory.routes.js';
 import { salesRouter } from './routes/sales.routes.js';
+import { returnsRouter } from './routes/returns.routes.js';
+import { suppliersRouter } from './routes/suppliers.routes.js';
 import { usersRouter } from './routes/users.routes.js';
 
 export const app = express();
@@ -32,9 +34,11 @@ app.use('/api', authenticate);
 
 app.use('/api/users', usersRouter);
 app.use('/api/customers', customersRouter);
+app.use('/api/suppliers', suppliersRouter);
 app.use('/api/books', booksRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api', inventoryRouter);
 app.use('/api/sales', salesRouter);
+app.use('/api/returns', returnsRouter);
 
 app.use(errorHandler);

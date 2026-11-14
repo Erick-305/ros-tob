@@ -15,6 +15,7 @@ model Book {
   title              String
   updatedAt          TimestamptzString   @default(now())
   inventoryMovements InventoryMovement[]
+  returnItems       SalesReturnItem[]
   saleItems          SaleItem[]
 
   @@map("book")
@@ -51,6 +52,7 @@ model User {
   verificationCode      String?
   verificationExpiresAt TimestamptzString?
   inventoryMovements    InventoryMovement[]
+  salesReturns          SalesReturn[]
   sales                 Sale[]
 
   @@map("user")
@@ -64,14 +66,33 @@ model InventoryMovement {
   previousStock Int
   quantity      Int
   reason        String
+  supplierId    Int?
   type          String            @map("type")
+  unitCost      Numeric?
   userId        Int
   book          Book        @relation(fields: [bookId], references: [id], map: "inventoryMovement_bookId_fkey")
+  supplier      Supplier?   @relation(fields: [supplierId], references: [id], map: "inventoryMovement_supplierId_fkey")
   user          User        @relation(fields: [userId], references: [id], map: "inventoryMovement_userId_fkey")
 
   @@index([bookId], name: "inventoryMovement_bookId_idx")
+  @@index([supplierId], name: "inventoryMovement_supplierId_idx")
   @@index([userId], name: "inventoryMovement_userId_idx")
   @@map("inventoryMovement")
+}
+
+model Supplier {
+  id                 Int                 @id(map: "supplier_pkey") @default(autoincrement())
+  name               String
+  contactName        String?
+  phone              String?
+  email              String?
+  address            String?
+  notes              String?
+  createdAt          TimestamptzString   @default(now())
+  updatedAt          TimestamptzString   @default(now())
+  inventoryMovements InventoryMovement[]
+
+  @@map("supplier")
 }
 
 model Sale {
@@ -92,6 +113,7 @@ model Sale {
   userId            Int
   sellerName        String?
   saleItems         SaleItem[]
+  salesReturns       SalesReturn[]
   customer          Customer?   @relation(fields: [customerId], references: [id], map: "sale_customerId_fkey")
   user              User        @relation(fields: [userId], references: [id], map: "sale_userId_fkey")
 
@@ -111,8 +133,41 @@ model SaleItem {
   unitPrice   Numeric
   book        Book    @relation(fields: [bookId], references: [id], map: "saleItem_bookId_fkey")
   sale        Sale    @relation(fields: [saleId], references: [id], map: "saleItem_saleId_fkey")
+  returnItems SalesReturnItem[]
 
   @@index([bookId], name: "saleItem_bookId_idx")
   @@index([saleId], name: "saleItem_saleId_idx")
   @@map("saleItem")
+}
+
+model SalesReturn {
+  id           Int                 @id(map: "salesReturn_pkey") @default(autoincrement())
+  saleId       Int
+  userId       Int
+  reason       String
+  refundAmount Numeric
+  createdAt    TimestamptzString   @default(now())
+  sale         Sale                @relation(fields: [saleId], references: [id], map: "salesReturn_saleId_fkey")
+  user         User                @relation(fields: [userId], references: [id], map: "salesReturn_userId_fkey")
+  items        SalesReturnItem[]
+
+  @@index([saleId], name: "salesReturn_saleId_idx")
+  @@index([userId], name: "salesReturn_userId_idx")
+  @@map("salesReturn")
+}
+
+model SalesReturnItem {
+  id          Int         @id(map: "salesReturnItem_pkey") @default(autoincrement())
+  returnId    Int
+  saleItemId  Int
+  bookId      Int
+  quantity    Int
+  unitPrice   Numeric
+  return      SalesReturn @relation(fields: [returnId], references: [id], map: "salesReturnItem_returnId_fkey")
+  saleItem    SaleItem    @relation(fields: [saleItemId], references: [id], map: "salesReturnItem_saleItemId_fkey")
+  book        Book        @relation(fields: [bookId], references: [id], map: "salesReturnItem_bookId_fkey")
+
+  @@index([returnId], name: "salesReturnItem_returnId_idx")
+  @@index([saleItemId], name: "salesReturnItem_saleItemId_idx")
+  @@map("salesReturnItem")
 }

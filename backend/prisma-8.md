@@ -95,7 +95,8 @@ npx prisma migration status    # Show migration status
 
 1. Edit [`prisma/schema.prisma`](prisma/schema.prisma) to add or change models.
 2. Run `npx prisma contract emit` to regenerate the contract.
-3. Query your models — your IDE will autocomplete everything.
+3. Apply any checked-in SQL migration under [`prisma/migrations/`](prisma/migrations/) to PostgreSQL before deploying code that uses the new fields or tables. Emitting the contract only updates application types; it does not change the database.
+4. Query your models — your IDE will autocomplete everything.
 
 ## Monorepo notes (pnpm workspaces)
 

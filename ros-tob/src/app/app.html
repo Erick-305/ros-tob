@@ -10,6 +10,8 @@
       <button [class.active]="view() === 'sale'" (click)="navigate('sale')"><span>＋</span> Nueva venta</button>
       <button [class.active]="view() === 'inventory'" (click)="navigate('inventory')"><span>▦</span> Inventario</button>
       <button [class.active]="view() === 'history'" (click)="navigate('history')"><span>◷</span> Historial</button>
+      <button [class.active]="view() === 'suppliers'" (click)="navigate('suppliers')"><span>♧</span> Proveedores</button>
+      <button [class.active]="view() === 'returns'" (click)="navigate('returns')"><span>↩</span> Devoluciones</button>
       @if (isAdmin()) { <button [class.active]="view() === 'users'" (click)="navigate('users')"><span>♙</span>
         Usuarios</button> }
     </nav>
@@ -22,7 +24,7 @@
       <div>
         <p class="eyebrow">{{ todayLabel }}</p>
         <h1>{{ view() === 'dashboard' ? 'Buenos días, equipo.' : view() === 'sale' ? 'Nueva nota de venta' : view() ===
-          'inventory' ? 'Inventario' : 'Historial de ventas' }}</h1>
+          'inventory' ? 'Inventario' : view() === 'history' ? 'Historial de ventas' : view() === 'suppliers' ? 'Proveedores' : view() === 'returns' ? 'Devoluciones' : 'Usuarios' }}</h1>
       </div>
       <div class="user-area"><button class="theme-button" (click)="toggleDarkMode()"
           [attr.aria-label]="darkMode() ? 'Activar modo claro' : 'Activar modo oscuro'">{{ darkMode() ? '☀' : '☾'
@@ -41,6 +43,8 @@
     @if (view() === 'inventory') { <app-inventory /> }
     @if (view() === 'sale') { <app-sale /> }
     @if (view() === 'history') { <app-history /> }
+    @if (view() === 'suppliers') { <app-suppliers /> }
+    @if (view() === 'returns') { <app-returns /> }
     @if (view() === 'users') { <app-users /> }
   </main>
 </div>
@@ -80,7 +84,7 @@
     </div>
     <div class="form-grid"><label>Cantidad recibida<input type="number" min="1"
           [(ngModel)]="bookForm.stock"></label><label>Costo unitario<input type="text" inputmode="decimal"
-          [ngModel]="bookForm.cost" (ngModelChange)="bookForm.cost = parseDecimal($event)"></label></div>
+          [ngModel]="bookForm.cost" (ngModelChange)="bookForm.cost = parseDecimal($event)"></label><label>Proveedor<select [(ngModel)]="inventoryService.entrySupplierId" name="entrySupplierId"><option [ngValue]="0">Sin proveedor</option>@for (supplier of inventoryService.suppliers(); track supplier.id) { <option [ngValue]="supplier.id">{{ supplier.name }}</option> }</select></label></div>
     <div class="modal-actions"><button class="secondary-button"
         (click)="showEntryForm.set(false)">Cancelar</button><button class="primary-button"
         (click)="saveEntry()">Registrar entrada</button></div>

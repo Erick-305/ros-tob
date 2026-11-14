@@ -5,6 +5,8 @@ import { InventoryService } from './inventory.service';
 import type { View } from './models';
 import { NotificationService } from './notification.service';
 import { SalesService } from './sales.service';
+import { ReturnsService } from './returns.service';
+import { SuppliersService } from './suppliers.service';
 import { UsersService } from './users.service';
 
 @Injectable({ providedIn: 'root' })
@@ -12,6 +14,8 @@ export class NavigationService {
   private readonly inventory = inject(InventoryService);
   private readonly customers = inject(CustomersService);
   private readonly sales = inject(SalesService);
+  private readonly suppliers = inject(SuppliersService);
+  private readonly returns = inject(ReturnsService);
   private readonly users = inject(UsersService);
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
@@ -26,6 +30,8 @@ export class NavigationService {
     if (view === 'inventory') this.inventory.loadBooks();
     if (view === 'sale') this.customers.load();
     if (view === 'history') this.sales.loadSales();
+    if (view === 'suppliers') this.suppliers.load();
+    if (view === 'returns') this.returns.load();
     if (view === 'users' && this.auth.isAdmin()) this.users.load();
   }
 

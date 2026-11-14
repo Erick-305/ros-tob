@@ -1,0 +1,66 @@
+<section class="page">
+  <div class="page-actions">
+    <div>
+      <p class="eyebrow amber">ATENCIÓN AL CLIENTE</p>
+      <h2>Devoluciones</h2>
+      <p class="muted">Registra devoluciones de ventas y consulta las unidades y reembolsos.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="refresh()">↻ Actualizar</button>
+  </div>
+
+  <section class="panel return-form-panel">
+    <div class="panel-head"><div><p class="eyebrow amber">NUEVA DEVOLUCIÓN</p><h3>Registrar devolución</h3></div></div>
+    <form (ngSubmit)="save()">
+      <div class="form-grid return-fields">
+        <label>Venta original
+          <select name="saleId" [(ngModel)]="form.saleId" (ngModelChange)="form.items = [{ saleItemId: 0, quantity: 1 }]" required>
+            <option [ngValue]="0">Selecciona una venta</option>
+            @for (sale of sales(); track sale.id) { <option [ngValue]="sale.id">Venta #{{ sale.number }} — {{ sale.createdAt | date:'dd/MM/yy HH:mm' }}</option> }
+          </select>
+        </label>
+        <label class="wide">Motivo de devolución<input name="reason" [(ngModel)]="form.reason" maxlength="300" required placeholder="Describe brevemente el motivo"></label>
+      </div>
+      <div class="return-lines">
+        @for (line of form.items; track $index; let index = $index) {
+          <div class="return-line">
+            <label>Libro devuelto
+              <select [name]="'saleItem' + index" [(ngModel)]="line.saleItemId" required>
+                <option [ngValue]="0">Selecciona un libro</option>
+                @for (item of selectedSale()?.items; track item.id) {
+                  <option [ngValue]="item.id">{{ item.description }} — quedan {{ item.quantity - item.returnedQuantity }} de {{ item.quantity }}</option>
+                }
+              </select>
+            </label>
+            <label>Cantidad
+              <input [name]="'quantity' + index" type="number" min="1" [max]="line.saleItemId ? availableQuantity(line.saleItemId, index) : 1" [(ngModel)]="line.quantity" required>
+            </label>
+            @if (form.items.length > 1) { <button class="small-button danger-button" type="button" (click)="removeItem(index)">Quitar</button> }
+          </div>
+        }
+      </div>
+      <div class="return-form-actions">
+        <button class="secondary-button" type="button" (click)="addItem()" [disabled]="!selectedSale()">＋ Agregar libro</button>
+        <button class="primary-button" type="submit">Registrar devolución</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="table-panel supplier-table-panel">
+    <div class="panel-head"><div><p class="eyebrow amber">REGISTRO</p><h3>Historial de devoluciones</h3></div></div>
+    <table>
+      <thead><tr><th>Fecha</th><th>Venta</th><th>Libros</th><th>Unidades</th><th>Motivo</th><th>Reembolso</th></tr></thead>
+      <tbody>
+        @for (entry of returns(); track entry.id) {
+          <tr>
+            <td>{{ entry.createdAt | date:'dd/MM/yy HH:mm' }}</td>
+            <td>{{ entry.saleNumber === null ? '—' : '#' + entry.saleNumber }}</td>
+            <td>{{ entry.descriptions.join(', ') }}</td>
+            <td>{{ entry.itemCount }}</td>
+            <td>{{ entry.reason }}</td>
+            <td><strong>{{ entry.refundAmount | currency:'USD' }}</strong></td>
+          </tr>
+        } @empty { <tr><td colspan="6" class="empty">No hay devoluciones registradas.</td></tr> }
+      </tbody>
+    </table>
+  </section>
+</section>
