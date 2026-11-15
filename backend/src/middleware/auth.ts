@@ -9,14 +9,18 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   const authorization = req.headers.authorization;
   const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
   if (!token) { res.status(401).json({ message: 'Sesión requerida.' }); return; }
+  let payload: string | jwt.JwtPayload;
   try {
-    const payload = jwt.verify(token, jwtSecret);
-    const userId = Number((payload as jwt.JwtPayload).sub);
-    const user = Number.isInteger(userId) ? await db.orm.public.User.first({ id: userId }) : null;
-    if (!user || !user.active) { res.status(401).json({ message: 'La cuenta está inactiva o la sesión ya no es válida.' }); return; }
-    (req as AuthedRequest).user = { id: user.id, role: user.role };
-    next();
-  } catch { res.status(401).json({ message: 'Sesión expirada. Inicia sesión nuevamente.' }); }
+    payload = jwt.verify(token, jwtSecret, { ignoreExpiration: true });
+  } catch {
+    res.status(401).json({ message: 'La sesión no es válida. Inicia sesión nuevamente.' });
+    return;
+  }
+  const userId = Number((payload as jwt.JwtPayload).sub);
+  const user = Number.isInteger(userId) ? await db.orm.public.User.first({ id: userId }) : null;
+  if (!user || !user.active) { res.status(401).json({ message: 'La cuenta está inactiva o la sesión ya no es válida.' }); return; }
+  (req as AuthedRequest).user = { id: user.id, role: user.role };
+  next();
 };
 
 export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
