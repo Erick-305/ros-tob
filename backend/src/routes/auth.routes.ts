@@ -20,7 +20,7 @@ authRouter.post('/login', asyncRoute(async (req, res) => {
   if (user && user.email && !user.emailVerified) { res.status(403).json({ message: 'Debes verificar tu correo antes de iniciar sesión.' }); return; }
   const valid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
   if (!user || !valid) { res.status(401).json({ message: 'Usuario o contraseña incorrectos.' }); return; }
-  const token = jwt.sign({ sub: user.id, role: user.role, name: user.name }, jwtSecret);
+  const token = jwt.sign({ sub: user.id, role: user.role, name: user.name }, jwtSecret, { expiresIn: '8h' });
   res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } });
 }));
 

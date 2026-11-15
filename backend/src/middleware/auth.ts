@@ -11,9 +11,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   if (!token) { res.status(401).json({ message: 'Sesión requerida.' }); return; }
   let payload: string | jwt.JwtPayload;
   try {
-    payload = jwt.verify(token, jwtSecret, { ignoreExpiration: true });
+    payload = jwt.verify(token, jwtSecret, { maxAge: '8h' });
   } catch {
-    res.status(401).json({ message: 'La sesión no es válida. Inicia sesión nuevamente.' });
+    res.status(401).json({ message: 'La sesión terminó. Inicia sesión nuevamente.' });
     return;
   }
   const userId = Number((payload as jwt.JwtPayload).sub);
